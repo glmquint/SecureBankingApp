@@ -1,1 +1,5 @@
 tex2pdf*
+.vscode/
+*.o
+client
+server
