@@ -12,11 +12,16 @@
 #define CYAN    "\033[36m"
 #define WHITE   "\033[37m"
 
+#define LOG(message) \
+    std::cout << "File: " << __FILE__ << ":" << __LINE__ << " in " << __PRETTY_FUNCTION__ << " - " << (message) << std::endl;
+
 class Logger {
     public:
         static void info(std::string str);
         static void warning(std::string str);
         static void error(std::string str);
         static void success(std::string str);
+        static void debug(std::string str);
+        static void print(std::string str);
 };
 #endif

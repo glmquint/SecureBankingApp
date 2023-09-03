@@ -14,3 +14,15 @@ void Logger::error(std::string str){
 void Logger::success(std::string str){
     std::cout << GREEN << "[+] " << str << RESET << std::endl;
 }
+
+void Logger::debug(std::string str)
+{
+    #ifndef DEBUG_OFF
+    std::cout << MAGENTA << "[DEBUG] " << str << RESET << std::endl;
+    #endif
+}
+
+void Logger::print(std::string str)
+{
+    std::cout << RESET << str << std::endl;
+}

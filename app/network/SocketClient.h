@@ -4,11 +4,11 @@
 
 class SocketClient {
 public:
-    SocketClient();
     SocketClient(const std::string &serverIp, int port);
     void send(const std::string& message);
     std::string receive();
     void close();
+    ~SocketClient();
 
 private:
     std::string m_serverIp;

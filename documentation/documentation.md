@@ -14,13 +14,12 @@ titlepage-rule-height: 0
 toc-own-page: true
 toc: true
 abstract: |
-	This is the abstract
-
-	It consists of two paragraphs
+	The objective of this project is to develop a secure client-server application that allows users to perform operations on their bank account.
+	The program is developed in C++ and uses the OpenSSL library for cryptography algorithms.
 ---
 
 # Introduction
 
-# Development
+# Protocols used
 
 # Conclusions

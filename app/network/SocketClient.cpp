@@ -7,51 +7,65 @@
 #include "SocketClient.h"
 #include "../util/Logger.h"
 
-SocketClient::SocketClient(){
-    // default constructor that fails
-}
 
-SocketClient::SocketClient(const std::string& serverIp, int port) : m_serverIp(serverIp), m_port(port), m_socket_fd(-1) {
+SocketClient::SocketClient(const std::string &serverIp, int port) : m_serverIp(serverIp), m_port(port), m_socket_fd(-1)
+{
     m_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (m_socket_fd < 0) {
+    if (m_socket_fd < 0)
+    {
         throw std::runtime_error("Failed to create socket");
     }
 
     sockaddr_in server_address;
     server_address.sin_family = AF_INET;
     server_address.sin_port = htons(port);
-    if (inet_pton(AF_INET, serverIp.c_str(), &server_address.sin_addr) <= 0) {
-        Logger::error("address: " + serverIp + "\tport: " + std::to_string(port));
+    if (inet_pton(AF_INET, serverIp.c_str(), &server_address.sin_addr) <= 0)
+    {
+        Logger::debug("address: " + serverIp + "\tport: " + std::to_string(port));
         throw std::runtime_error("Invalid address/Address not supported");
     }
 
-    if (connect(m_socket_fd, (struct sockaddr *)&server_address, sizeof(server_address)) < 0) {
-        Logger::error("address: " + serverIp + "\tport: " + std::to_string(port));
+    if (connect(m_socket_fd, (struct sockaddr *)&server_address, sizeof(server_address)) < 0)
+    {
+        Logger::debug("address: " + serverIp + "\tport: " + std::to_string(port));
         throw std::runtime_error("Connection failed");
     }
+    Logger::success("Successfully connected to " + serverIp + " on port " + std::to_string(port));
 }
 
-void SocketClient::send(const std::string& message) {
+void SocketClient::send(const std::string &message)
+{
     int num_bytes = write(m_socket_fd, message.c_str(), message.size());
-    if (num_bytes < 0) {
+    if (num_bytes < 0)
+    {
         throw std::runtime_error("Failed to send data");
     }
 }
 
-std::string SocketClient::receive() {
+std::string SocketClient::receive()
+{
     char buffer[1024];
     int num_bytes = read(m_socket_fd, buffer, sizeof(buffer));
-    if (num_bytes < 0) {
+    if (num_bytes < 0)
+    {
         throw std::runtime_error("Failed to receive data");
     }
     return std::string(buffer, num_bytes);
 }
 
-void SocketClient::close() {
-    if (m_socket_fd != -1) {
+void SocketClient::close()
+{
+    if (m_socket_fd != -1)
+    {
         ::close(m_socket_fd);
         m_socket_fd = -1;
     }
+}
+
+SocketClient::~SocketClient()
+{
+    LOG("destructor socket client");
+    // close(); // TODO: understand why
 }
 
 /*
