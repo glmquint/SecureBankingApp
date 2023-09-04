@@ -6,9 +6,16 @@
 #include "SBAServer.h"
 #include "../network/SocketServer.h"
 
-void callback(SocketServer& socketServer, std::string str){
+void callback(SocketServer& socketServer, char* buffer, int size){
+    std::string str(buffer, size);
     Logger::success("callback: " + str);
-    socketServer.send(str);
+    if (str == "ECHO"){
+        socketServer.send(str);
+    } else if (str == "LOGIN")
+    {
+        /* code */
+    }
+    
 }
 
 SBAServer::SBAServer(SocketServer* socketServer)

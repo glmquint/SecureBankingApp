@@ -69,6 +69,7 @@ void SBAClient::loop()
         else if (cmd == "echo")
         {
             getline(std::cin, cmd);
+            m_socketClient->send("ECHO");
             m_socketClient->send(cmd);
             cmd = m_socketClient->receive();
             Logger::info("client received " + std::to_string(cmd.length()) + " bytes back: " + cmd);
@@ -76,30 +77,40 @@ void SBAClient::loop()
         else if (cmd == "balance")
         {
             Logger::info("got balance command");
+            m_session->getBalance();
             // TODO
         }
         else if (cmd == "history")
         {
             Logger::info("got history command");
+            m_session->getHistory();
             // TODO
         }
         else if (cmd == "transfer")
         {
             Logger::info("got transfer command");
             std::string other;
-            int amount;
-            Logger::print("other > ");
-            std::cin >> other;
-            Logger::print("amount > ");
-            std::cin >> amount;
-            if (!std::cin.good())
+            uint amount;
+            bool ok = false;
+            while (!ok)
             {
-                Logger::error("invalid amount, please enter a valid integer");
-                std::cin.clear();
-                continue;
+                Logger::print("other > ");
+                std::cin >> other;
+                Logger::print("amount > ");
+                std::cin >> amount;
+                if (!std::cin.good())
+                {
+                    Logger::error("invalid amount, please enter a valid integer");
+                    std::cin.clear();
+                    continue;
+                }
+                Logger::info("other: " + other);
+                Logger::info("amount: " + std::to_string(amount));
+                Logger::print("is this correct? (y/N)");
+                std::cin >> cmd;
+                ok = (cmd == "y");
             }
-            Logger::info("other: " + other);
-            Logger::info("amount: " + std::to_string(amount));
+            m_session->transfer(other, amount);
             // TODO
         }
 

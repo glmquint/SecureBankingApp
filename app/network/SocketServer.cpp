@@ -49,7 +49,7 @@ SocketServer::SocketServer(int port) : m_port(port), m_running(false) {
     }
 }
 
-void SocketServer::start(void (*callback)(SocketServer&, std::string)) {
+void SocketServer::start(void (*callback)(SocketServer&, char*, int)) {
     m_running = true;
     while (m_running && !g_flag) {
         fd_set read_fds = m_read_fds;
@@ -95,11 +95,9 @@ void SocketServer::start(void (*callback)(SocketServer&, std::string)) {
                         FD_CLR(fd, &m_read_fds);
                     } else {
                         Logger::info("Received " + std::to_string(num_bytes) + " bytes from client" );
-                        std::string str(buffer, num_bytes);
-                        Logger::info(str);
 
                         m_handling_fd = fd;
-                        callback(*this, str);
+                        callback(*this, buffer, num_bytes);
 
                     }
                 }
@@ -108,8 +106,8 @@ void SocketServer::start(void (*callback)(SocketServer&, std::string)) {
     }
 }
 
-
-void SocketServer::send(const std::string& message){
+void SocketServer::send(const std::string &message)
+{
     if (m_handling_fd < 0){
         throw std::runtime_error("Iinvalid fd");
     }

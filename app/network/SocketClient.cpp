@@ -33,6 +33,14 @@ SocketClient::SocketClient(const std::string &serverIp, int port) : m_serverIp(s
     Logger::success("Successfully connected to " + serverIp + " on port " + std::to_string(port));
 }
 
+void SocketClient::sendData(unsigned char* data, int len){
+    int num_sent = 0;
+    do
+    {
+        num_sent += ::send(m_socket_fd, data, len, 0);
+    } while (num_sent < len);
+}
+
 void SocketClient::send(const std::string &message)
 {
     int num_bytes = write(m_socket_fd, message.c_str(), message.size());

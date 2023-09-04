@@ -5,7 +5,7 @@
 class SocketServer {
 public:
     SocketServer(int port);
-    void start(void (*callback)(SocketServer&, std::string));
+    void start(void (*callback)(SocketServer& socketServer, char*, int));
     void send(const std::string& message);
     void stop();
     ~SocketServer();

@@ -1,37 +1,31 @@
-#include <cstddef>
-#include <stdexcept>
+#include "MemoryArena.h"
+#include <iostream>
 
-class MemoryArena {
-public:
-    MemoryArena(std::size_t size) : m_size(size), m_used(0) {
-        m_memory = new char[size];
+MemoryArena::MemoryArena(std::size_t size) : m_size(size), m_used(0) {
+    std::cout << "Btw, you're still using MemoryArena" << std::endl;
+    m_memory = new char[size];
+}
+
+MemoryArena::~MemoryArena() {
+    delete[] m_memory;
+}
+
+void* MemoryArena::allocate(std::size_t size) {
+    if (m_used + size <= m_size) {
+        void* ptr = m_memory + m_used;
+        m_used += size;
+        return ptr;
+    } else {
+        throw std::bad_alloc();
     }
+}
 
-    ~MemoryArena() {
-        delete[] m_memory;
-    }
+void MemoryArena::deallocate(void* /*ptr*/) {
+    // Memory arena doesn't support individual deallocation
+    // All memory is released when the arena is destructed
+}
 
-    void* allocate(std::size_t size) {
-        if (m_used + size <= m_size) {
-            void* ptr = m_memory + m_used;
-            m_used += size;
-            return ptr;
-        } else {
-            throw std::bad_alloc();
-        }
-    }
-
-    void deallocate(void* /*ptr*/) {
-        // Memory arena doesn't support individual deallocation
-        // All memory is released when the arena is destructed
-    }
-
-private:
-    char* m_memory;
-    std::size_t m_size;
-    std::size_t m_used;
-};
-
+/*
 int main() {
     try {
         MemoryArena arena(1024); // Create a memory arena with 1024 bytes
@@ -53,4 +47,4 @@ int main() {
 
     return 0;
 }
-
+*/
