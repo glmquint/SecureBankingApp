@@ -3,3 +3,4 @@ tex2pdf*
 *.o
 client
 server
+shell.exe
