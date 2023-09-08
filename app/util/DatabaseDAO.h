@@ -30,9 +30,9 @@ class DatabaseDAO {
         sqlite3* db;
     public:
         DatabaseDAO(const char* db_name);
-        char* login(const char* username, const char* password);
         bool transfer(char* src, char* dst, uint amount);
         char* getTransfers(char* user, int T);
+        int getBalance(std::string username);
         void resetDB();
         ~DatabaseDAO();
         bool verifyClientExist(std::string user);

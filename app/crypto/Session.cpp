@@ -345,6 +345,19 @@ bool Session::isExpired()
 void Session::getBalance()
 {
     Logger::debug("getting balance");
+    unsigned char* ct;
+    unsigned char* iv = nullptr;
+    unsigned char* to_hashed = nullptr;
+    unsigned char* hmac = nullptr;
+    unsigned char* to_enc = nullptr;
+    int len = 0;
+    int enc_len = 0;
+    ct = createCiphertext("balance", m_sessionKey, &iv, &to_hashed, &hmac, m_HMACKey, &to_enc, &len, &enc_len);
+    Logger::debug("ct: " + Base64Encode(ct, (size_t)len));
+    m_socketClient->sendData((const char*)ct, (size_t)len);
+    char buf[BUFFER_SIZE];
+    int buflen;
+    m_socketClient->receiveData(buf, buflen);
 }
 
 void Session::getHistory()

@@ -49,7 +49,7 @@ int verify_signature(EVP_PKEY *pubkey, const unsigned char *signature,
                     const size_t signature_len, const unsigned char *hash,
                     const size_t hash_len);
 std::string decryptCipherText(unsigned char *buffer,int cipherSize,unsigned char * session_key,unsigned char * HMACKey);
-unsigned char * createCiphertext(std::string msg, int id, unsigned char* sharedSecret,
+unsigned char * createCiphertext(std::string msg, unsigned char* sharedSecret,
                                 unsigned char** IV, unsigned char** to_hashed,
                                 unsigned char** HMAC,unsigned char * HMACKey, unsigned char** to_enc, int* length, int* enc_len);
 unsigned char * getHMAC(unsigned char *msg, const int msg_len,unsigned char *key,unsigned int &digestlen);

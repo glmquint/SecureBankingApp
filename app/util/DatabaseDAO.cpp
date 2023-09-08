@@ -10,10 +10,6 @@ DatabaseDAO::DatabaseDAO(const char *db_name)
         throw std::runtime_error("problem opening the database");
     }
 }
-char *DatabaseDAO::login(const char *username, const char *password)
-{
-    return nullptr;
-}
 bool DatabaseDAO::transfer(char *src, char *dst, uint amount)
 {
     return false;
@@ -21,6 +17,24 @@ bool DatabaseDAO::transfer(char *src, char *dst, uint amount)
 char *DatabaseDAO::getTransfers(char *user, int T)
 {
     return nullptr;
+}
+
+int DatabaseDAO::getBalance(std::string user)
+{
+    const char *selectSQL = "SELECT balance FROM Users WHERE username = ?;";
+    int balance = -1;
+    sqlite3_stmt *stmt;
+    int result = sqlite3_prepare_v2(db, selectSQL, -1, &stmt, nullptr);
+    if (result == SQLITE_OK)
+    {
+        sqlite3_bind_text(stmt, 1, user.c_str(), -1, SQLITE_STATIC);
+        result = sqlite3_step(stmt);
+        if (result == SQLITE_ROW){
+            balance = sqlite3_column_int(stmt, 1);
+        }
+        sqlite3_finalize(stmt);
+    }
+    return balance;
 }
 
 void DatabaseDAO::resetDB()

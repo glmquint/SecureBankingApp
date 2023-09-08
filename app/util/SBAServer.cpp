@@ -330,34 +330,34 @@ void SBAServer::handshakeServer(int sd, unsigned char *buffer, int len)
     // newUser.logged=true;
     // user_logged.push_back(newUser);
 }
-void SBAServer::sendEncrypted(int sd, std::string cleartext){
-    //std::string res = "OKLOG " + to_string(int(id_clients)); // respond to client with its id
-    unsigned char *IV_final = nullptr;
-    unsigned char *to_hashed_final = nullptr;
-    unsigned char *HMAC = nullptr;
-    unsigned char *to_enc_final = nullptr;
-    int msg_len = 0;
-    int enc_len = 0;
-    unsigned char *msg_final = createCiphertext(cleartext, sd, connected_users[sd]->m_sharedSecret,
-                                                &IV_final, &to_hashed_final, &HMAC, connected_users[sd]->m_hmacSecret, &to_enc_final, &msg_len, &enc_len);
-    if (!msg_final)
-    {
-        //securefree(sessionKey, AES128LEN);
-        //securefree(HMACKey, SHA256LEN);
-        return;
-    }
-    if (IV_final != nullptr)
-        securefree(IV_final, IVLEN);
-    if (to_hashed_final != nullptr)
-        securefree(to_hashed_final, IVLEN + enc_len + 1);
-    if (HMAC != nullptr)
-        securefree(HMAC, SHA256LEN);
-    if (to_enc_final != nullptr)
-        securefree(to_enc_final, cleartext.length() + 1);
+// void SBAServer::sendEncrypted(int sd, std::string cleartext){
+//     //std::string res = "OKLOG " + to_string(int(id_clients)); // respond to client with its id
+//     unsigned char *IV_final = nullptr;
+//     unsigned char *to_hashed_final = nullptr;
+//     unsigned char *HMAC = nullptr;
+//     unsigned char *to_enc_final = nullptr;
+//     int msg_len = 0;
+//     int enc_len = 0;
+//     unsigned char *msg_final = createCiphertext(cleartext, sd, connected_users[sd]->m_sharedSecret,
+//                                                 &IV_final, &to_hashed_final, &HMAC, connected_users[sd]->m_hmacSecret, &to_enc_final, &msg_len, &enc_len);
+//     if (!msg_final)
+//     {
+//         //securefree(sessionKey, AES128LEN);
+//         //securefree(HMACKey, SHA256LEN);
+//         return;
+//     }
+//     if (IV_final != nullptr)
+//         securefree(IV_final, IVLEN);
+//     if (to_hashed_final != nullptr)
+//         securefree(to_hashed_final, IVLEN + enc_len + 1);
+//     if (HMAC != nullptr)
+//         securefree(HMAC, SHA256LEN);
+//     if (to_enc_final != nullptr)
+//         securefree(to_enc_final, cleartext.length() + 1);
 
-    send(sd, msg_final, msg_len, 0);
-    securefree(msg_final, msg_len);
-}
+//     send(sd, msg_final, msg_len, 0);
+//     securefree(msg_final, msg_len);
+// }
 
 void SBAServer::callback(int sd, char *buf, int len)
 {
@@ -366,6 +366,10 @@ void SBAServer::callback(int sd, char *buf, int len)
     if (connected_users.find(sd) != connected_users.end())
     {
         Logger::info("handle known user");
+        std::string operation;
+        operation = decryptCipherText((unsigned char*)buf, len, connected_users[sd]->m_sharedSecret, connected_users[sd]->m_hmacSecret);
+        Logger::success("got operation: " + operation);
+        //performOperation(sd, operation); // switch execution over operation, sd may be useful for answers
     }
     else
     {

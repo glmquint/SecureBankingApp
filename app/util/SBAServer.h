@@ -27,7 +27,7 @@ class SBAServer {
         EVP_PKEY* m_privateKey;
         DatabaseDAO* m_database;
         void handshakeServer(int sd, unsigned char * buffer, int len);
-        void sendEncrypted(int sd, std::string cleartext);
+        //void sendEncrypted(int sd, std::string cleartext);
         
     public:
         SBAServer(SocketServer* SocketServer, DatabaseDAO* database);
