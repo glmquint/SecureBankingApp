@@ -8,8 +8,9 @@ int main(int argc, char** argv){
     try
     {
         int serverPort = atoi(argv[1]);
-        SocketServer socketServer = SocketServer(serverPort);
-        SBAServer server = SBAServer(&socketServer);
+        SocketServer socketServer(serverPort);
+        DatabaseDAO database("SBA.db");
+        SBAServer server = SBAServer(&socketServer, &database);
     }
     catch (const std::runtime_error &e)
     {

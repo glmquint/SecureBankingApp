@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include "SocketClient.h"
 #include "../util/Logger.h"
+#include "../crypto/util.h"
 
 
 SocketClient::SocketClient(const std::string &serverIp, int port) : m_serverIp(serverIp), m_port(port), m_socket_fd(-1)
@@ -33,12 +34,14 @@ SocketClient::SocketClient(const std::string &serverIp, int port) : m_serverIp(s
     Logger::success("Successfully connected to " + serverIp + " on port " + std::to_string(port));
 }
 
-void SocketClient::sendData(unsigned char* data, int len){
+void SocketClient::sendData(const char* data, int len){
     int num_sent = 0;
     do
     {
         num_sent += ::send(m_socket_fd, data, len, 0);
     } while (num_sent < len);
+    Logger::success("client sended " + std::to_string(len) + " bytes: "+ Base64Encode((const unsigned char*)data, len));
+    Logger::debug("decoded: "+std::string(data, len));
 }
 
 void SocketClient::send(const std::string &message)
@@ -52,13 +55,22 @@ void SocketClient::send(const std::string &message)
 
 std::string SocketClient::receive()
 {
-    char buffer[1024];
-    int num_bytes = read(m_socket_fd, buffer, sizeof(buffer));
-    if (num_bytes < 0)
+    char* buffer = new char[BUFFER_SIZE];
+    int num_bytes = 0;
+    receiveData(buffer, num_bytes);
+    return std::string(buffer, num_bytes);
+}
+
+void SocketClient::receiveData(char *buffer, int& len)
+{
+    //buffer = new char[BUFFER_SIZE];
+    len = recv(m_socket_fd, buffer, BUFFER_SIZE, 0);
+    if (len < 0)
     {
         throw std::runtime_error("Failed to receive data");
     }
-    return std::string(buffer, num_bytes);
+    Logger::debug("Received encoded: " + Base64Encode((const unsigned char*) buffer, len));
+    Logger::info("Received " + std::to_string(len) + " bytes from server" );
 }
 
 void SocketClient::close()

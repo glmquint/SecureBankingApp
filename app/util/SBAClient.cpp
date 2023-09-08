@@ -68,8 +68,9 @@ void SBAClient::loop()
         }
         else if (cmd == "echo")
         {
-            getline(std::cin, cmd);
-            m_socketClient->send("ECHO");
+            std::string msg;
+            getline(std::cin, msg);
+            cmd.append(msg);
             m_socketClient->send(cmd);
             cmd = m_socketClient->receive();
             Logger::info("client received " + std::to_string(cmd.length()) + " bytes back: " + cmd);
