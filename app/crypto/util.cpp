@@ -272,6 +272,7 @@ int verify_signature(EVP_PKEY *pubkey, const unsigned char *signature,
         return -1; 
     }
 
+    Logger::success("signature verified");
     EVP_MD_CTX_free(ctx);
     return 1;
 }

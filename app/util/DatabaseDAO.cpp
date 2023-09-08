@@ -150,6 +150,7 @@ bool DatabaseDAO::addCredentials(std::string username, std::string password)
 
 bool DatabaseDAO::verifyCredentials(std::string username, std::string password)
 {
+    Logger::info("verifying credentials: " + username + " (" + std::to_string(username.length()) +" bytes)" + password + "(" + std::to_string(password.length()) + " bytes)");
     const char *selectSQL = "SELECT password, salt FROM Users WHERE username = ?;";
     sqlite3_stmt *stmt;
     int result = sqlite3_prepare_v2(db, selectSQL, -1, &stmt, nullptr);
@@ -173,8 +174,8 @@ bool DatabaseDAO::verifyCredentials(std::string username, std::string password)
             Base64Decode(saved_pwd_str, outlen), EVP_MD_size(EVP_sha256()));
         // Process data
         Logger::info("result of crypto_memcmp is " + std::to_string(result));
-        free((char *)saved_pwd); // TODO: hahah remember to free all
-        free((char *)salt);
+        //free((char *)saved_pwd); // TODO: hahah remember to free all
+        //free((char *)salt);
     }
     sqlite3_finalize(stmt);
     return result;

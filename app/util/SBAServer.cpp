@@ -214,11 +214,11 @@ void SBAServer::handshakeServer(int sd, unsigned char *buffer, int len)
     newuser->m_hmacSecret = HMACKey;
     newuser->m_isAuthenticated = false;
     connected_users[sd] = newuser;
-    /*
 
     unsigned char tmpBuffer[BUFFER_SIZE]; // tmp buffer for receiving client requests
     int byterec = recv(sd, tmpBuffer, BUFFER_SIZE, 0);
     Logger::info("Byte received " + std::to_string(byterec));
+    Logger::debug("received encoded: " + Base64Encode(buffer, byterec));
     if (byterec <= 4)
     {
         EVP_PKEY_free(m_privateKey);
@@ -274,6 +274,7 @@ void SBAServer::handshakeServer(int sd, unsigned char *buffer, int len)
     memcpy(toHash + DHPARLEN + NONCELEN, plainText, DHPARLEN + NONCELEN);
     memcpy(toHash + DHPARLEN + NONCELEN + DHPARLEN + NONCELEN, IV, IVLEN);
     memcpy(toHash + DHPARLEN + NONCELEN + DHPARLEN + NONCELEN + IVLEN, password, plain_len - SIGNLEN);
+    Logger::debug("toHash : " + Base64Encode(toHash, 2*NONCELEN + 2*DHPARLEN + IVLEN + plain_len - SIGNLEN));
 
     securefree(password, plain_len - SIGNLEN);
     securefree(dh_params_cl, DHPARLEN);
@@ -291,6 +292,7 @@ void SBAServer::handshakeServer(int sd, unsigned char *buffer, int len)
         securefree(decrypted, plain_len);
         return;
     }
+    Logger::debug("hashed: " + Base64Encode(hashed, 2*DHPARLEN + 2*NONCELEN + IVLEN + plain_len - SIGNLEN));
 
     // check if the signature is valid and contains same information
     EVP_PKEY *userPublicKey = readPublicKey("./keys/" + user + "/rsa_pubkey.pem");
@@ -302,12 +304,17 @@ void SBAServer::handshakeServer(int sd, unsigned char *buffer, int len)
         securefree(decrypted, plain_len);
         securefree(sessionKey, AES128LEN);
         securefree(HMACKey, SHA256LEN);
+        m_socketServer->sendData(sd, "KO", 2);
     }
     securefree(toHash, 2 * DHPARLEN + 2 * NONCELEN + IVLEN + plain_len - SIGNLEN);
     EVP_PKEY_free(userPublicKey);
     securefree(hashed, SHA256LEN);
     securefree(decrypted, plain_len);
     memset(tmpBuffer, 0, BUFFER_SIZE);
+
+    connected_users[sd]->m_isAuthenticated = true;
+    Logger::success("client is authenticated");
+    m_socketServer->sendData(sd, "OK", 2);
 
     // at this point client is authenticated
     // TODO: create new User and add it to connected_users[sd]
@@ -322,7 +329,6 @@ void SBAServer::handshakeServer(int sd, unsigned char *buffer, int len)
     // newUser.operation_counter_server=0;
     // newUser.logged=true;
     // user_logged.push_back(newUser);
-    */
 }
 void SBAServer::sendEncrypted(int sd, std::string cleartext){
     //std::string res = "OKLOG " + to_string(int(id_clients)); // respond to client with its id

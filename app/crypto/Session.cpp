@@ -7,13 +7,12 @@
 
 
 
-int Session::sendLoginMsg(std::string sent, unsigned char **nonce,
-                          unsigned char **dh_uchar, EVP_PKEY **dh_pub)
+int Session::sendHandshakeMsg(std::string sent, unsigned char **nonce,
+                          unsigned char **dh_uchar, EVP_PKEY **dh_pub, int& dh_pub_len)
 {
 
     // Generate the DH key
     *dh_pub = generateDHKey();
-    int dh_pub_len = 0;
     *dh_uchar = convertToUnsignedChar(*dh_pub, &dh_pub_len);
     if (dh_pub_len < 1)
     {
@@ -42,8 +41,8 @@ int Session::sendLoginMsg(std::string sent, unsigned char **nonce,
     memcpy(msg, (unsigned char *)cmd.c_str(), cmd.size());
     memcpy(msg + CMDLEN, *dh_uchar, dh_pub_len);
     memcpy(msg + CMDLEN + DHPARLEN, *nonce, NONCELEN);
-    //memcpy(msg + CMDLEN + NONCELEN + dh_pub_len, (unsigned char *)sent.c_str(), sent.size() + 1);
-    memcpy(msg + CMDLEN + DHPARLEN + NONCELEN, (unsigned char *)sent.c_str(), sent.size() + 1);
+    //memcpy(msg + CMDLEN + NONCELEN + dh_pub_len, (unsigned char *)sent.c_str(), sent.size() + 0);
+    memcpy(msg + CMDLEN + DHPARLEN + NONCELEN, (unsigned char *)sent.c_str(), sent.size() + 0);
 
     // Send the message and return the socked descriptor
     // int sd = sendmsg(msg, msg_len);
@@ -55,9 +54,9 @@ int Session::sendLoginMsg(std::string sent, unsigned char **nonce,
 
 
 
-int Session::receiveServerLoginAnswer(unsigned char **nonce_server,
+int Session::receiveServerHandshakeAnswer(unsigned char **nonce_server,
                                       unsigned char **dh_params_server, unsigned char **sharedSecret,
-                                      EVP_PKEY **dh_pub, unsigned char *dh_client, unsigned char *nonce_client)
+                                      EVP_PKEY **dh_pub, unsigned char *dh_client, unsigned char *nonce_client, int dh_uchar_len)
 {
 
     // receive the login answer
@@ -105,14 +104,12 @@ int Session::receiveServerLoginAnswer(unsigned char **nonce_server,
     unsigned char *HMACk = (unsigned char *)malloc(SHA256LEN);
     memcpy(session_key, *sharedSecret, AES128LEN);
     memcpy(HMACk, *sharedSecret + AES128LEN, SHA256LEN);
-    m_sessionKey = session_key;
-    m_HMACKey = HMACk;
-    Logger::success("session key " + Base64Encode(m_sessionKey, AES128LEN));
-    Logger::success("HMAC key " + Base64Encode(m_HMACKey, SHA256LEN));
+    Logger::success("session key " + Base64Encode(session_key, AES128LEN));
+    Logger::success("HMAC key " + Base64Encode(HMACk, SHA256LEN));
 
     // Get the signed hash message
     int plaintext_len = 0;
-    unsigned char *signed_hash = AESdecrypt(cptxt, buffer_len - IVLEN - DHPARLEN - NONCELEN, m_sessionKey, IV, plaintext_len);
+    unsigned char *signed_hash = AESdecrypt(cptxt, buffer_len - IVLEN - DHPARLEN - NONCELEN, session_key, IV, plaintext_len);
     securefree(cptxt, buffer_len - IVLEN - DHPARLEN - NONCELEN);
 
     // Generate the buffer to hash
@@ -120,7 +117,7 @@ int Session::receiveServerLoginAnswer(unsigned char **nonce_server,
     memset(toHash, 0, 2*DHPARLEN + 2*NONCELEN + IVLEN);
     memcpy(toHash, plainText_DH, DHPARLEN);
     memcpy(toHash + DHPARLEN, plainText_Nonce, NONCELEN);
-    memcpy(toHash + DHPARLEN + NONCELEN, dh_client, DHPARLEN);
+    memcpy(toHash + DHPARLEN + NONCELEN, dh_client, dh_uchar_len);
     memcpy(toHash + DHPARLEN + NONCELEN + DHPARLEN, nonce_client, NONCELEN);
     memcpy(toHash + DHPARLEN + NONCELEN + DHPARLEN + NONCELEN, IV, IVLEN);
 
@@ -137,6 +134,8 @@ int Session::receiveServerLoginAnswer(unsigned char **nonce_server,
         securefree(hashed, SHA256LEN);
         Logger::error("Failed in verifying signature");
     }
+    m_sessionKey = session_key;
+    m_HMACKey = HMACk;
     // Free remaining memory and return 0
     securefree(signed_hash, plaintext_len);
     securefree(hashed, SHA256LEN);
@@ -148,34 +147,37 @@ int Session::receiveServerLoginAnswer(unsigned char **nonce_server,
 
 int Session::sendHashCheck(std::string password, EVP_PKEY *privkey, unsigned char *client_dh,
                   unsigned char *nonce_client, unsigned char *server_dh,
-                  unsigned char *nonce_server)
+                  unsigned char *nonce_server, int dh_uchar_len)
 {
 
     // Create the text to be signed
     unsigned char *IV = generate_IV();
-    unsigned char *to_sign = (unsigned char *)malloc(2 * DHPARLEN + 2 * NONCELEN + IVLEN + password.size() + 1);
+    unsigned char *to_sign = (unsigned char *)malloc(2 * DHPARLEN + 2 * NONCELEN + IVLEN + password.size() + 0);
     if (to_sign == nullptr)
     {
         securefree(IV, IVLEN);
         Logger::error("Error in malloc of to_sign");
         return -1;
     }
-    memcpy(to_sign, client_dh, DHPARLEN);
+    memset(to_sign, 0, 2*DHPARLEN + 2*NONCELEN + IVLEN + password.size() + 0);
+    memcpy(to_sign, client_dh, dh_uchar_len);
     memcpy(to_sign + DHPARLEN, nonce_client, NONCELEN);
     memcpy(to_sign + DHPARLEN + NONCELEN, server_dh, DHPARLEN);
     memcpy(to_sign + 2 * DHPARLEN + NONCELEN, nonce_server, NONCELEN);
     memcpy(to_sign + 2 * DHPARLEN + 2 * NONCELEN, IV, IVLEN);
-    memcpy(to_sign + 2 * DHPARLEN + 2 * NONCELEN + IVLEN, (unsigned char *)password.c_str(), password.size() + 1);
+    memcpy(to_sign + 2 * DHPARLEN + 2 * NONCELEN + IVLEN, (unsigned char *)password.c_str(), password.size() + 0);
+    Logger::debug("to_sign: " + Base64Encode(to_sign, 2*DHPARLEN + 2* NONCELEN + IVLEN + password.size() + 0));
 
     // Create the hash for the text
-    unsigned char *hash = getHash(to_sign, 2 * DHPARLEN + 2 * NONCELEN + IVLEN + password.size() + 1, nullptr, EVP_sha256());
-    securefree(to_sign, 2 * DHPARLEN + 2 * NONCELEN + IVLEN + password.size() + 1);
+    unsigned char *hash = getHash(to_sign, 2 * DHPARLEN + 2 * NONCELEN + IVLEN + password.size() + 0, nullptr, EVP_sha256());
+    securefree(to_sign, 2 * DHPARLEN + 2 * NONCELEN + IVLEN + password.size() + 0);
     if (hash == nullptr)
     {
         securefree(IV, IVLEN);
         Logger::error("Error in generation of hash");
         return -1;
     }
+    Logger::debug("hash: " + Base64Encode(hash, SHA256LEN));
     unsigned char *signature = signMsg(privkey, hash, SHA256LEN);
     securefree(hash, SHA256LEN);
     if (signature == nullptr)
@@ -185,7 +187,7 @@ int Session::sendHashCheck(std::string password, EVP_PKEY *privkey, unsigned cha
         return -1;
     }
     // Create the cptxt
-    unsigned char *to_cptxt = (unsigned char *)malloc(SIGNLEN + password.size() + 1);
+    unsigned char *to_cptxt = (unsigned char *)malloc(SIGNLEN + password.size() + 0);
     if (to_cptxt == nullptr)
     {
         securefree(IV, IVLEN);
@@ -194,14 +196,16 @@ int Session::sendHashCheck(std::string password, EVP_PKEY *privkey, unsigned cha
         return -1;
     }
 
+    Logger::debug("signature: " + Base64Encode(signature, SIGNLEN));
     memcpy(to_cptxt, signature, SIGNLEN);
-    memcpy(to_cptxt + SIGNLEN, (unsigned char *)password.c_str(), password.size() + 1);
+    memcpy(to_cptxt + SIGNLEN, (unsigned char *)password.c_str(), password.size() + 0);
     securefree(signature, SIGNLEN);
+
 
     // Encrypt the plaintext
     int len = 0;
-    unsigned char *cptxt = AESencrypt(to_cptxt, SIGNLEN + password.size() + 1, m_sessionKey, IV, len);
-    securefree(to_cptxt, SIGNLEN + password.size() + 1);
+    unsigned char *cptxt = AESencrypt(to_cptxt, SIGNLEN + password.size() + 0, m_sessionKey, IV, len);
+    securefree(to_cptxt, SIGNLEN + password.size() + 0);
     if (cptxt == nullptr)
     {
         securefree(IV, IVLEN);
@@ -259,9 +263,11 @@ Session::Session(SocketClient *socketClient)
         // Nonce nonce(NONCELEN);
         unsigned char *nonce = nullptr;
         unsigned char *dh_uchar = nullptr;
+        int dh_uchar_len = 0;
         EVP_PKEY *dh_pub = nullptr;
 
-        int ret = sendLoginMsg(username, &nonce, &dh_uchar, &dh_pub);
+        Logger::info("sending handshake msg");
+        int ret = sendHandshakeMsg(username, &nonce, &dh_uchar, &dh_pub, dh_uchar_len);
         if (ret != 0)
         {
             continue;
@@ -269,8 +275,9 @@ Session::Session(SocketClient *socketClient)
         unsigned char *nonce_server = nullptr;
         unsigned char *dh_params_server = nullptr;
         unsigned char *sharedSecret = nullptr;
-        ret = receiveServerLoginAnswer(&nonce_server, &dh_params_server, &sharedSecret,
-                                       &dh_pub, dh_uchar, nonce);
+        Logger::info("receiving server handshake answer");
+        ret = receiveServerHandshakeAnswer(&nonce_server, &dh_params_server, &sharedSecret,
+                                       &dh_pub, dh_uchar, nonce, dh_uchar_len);
 
         if (ret != 0)
         {
@@ -285,10 +292,11 @@ Session::Session(SocketClient *socketClient)
             securefree(sharedSecret, AES128LEN + SHA256LEN);
 
         // Prepare variable for memory management in hashcheck response
-        ret = sendHashCheck(password, privkey.get(), dh_uchar, nonce, dh_params_server, nonce_server);
+        Logger::info("sending hash check");
+        ret = sendHashCheck(password, privkey.get(), dh_uchar, nonce, dh_params_server, nonce_server, dh_uchar_len);
 
         // Free remaining memory
-        securefree(dh_uchar, DHPARLEN);
+        securefree(dh_uchar, dh_uchar_len);
         securefree(nonce, NONCELEN);
         securefree(dh_params_server, DHPARLEN);
         securefree(nonce_server, NONCELEN);
