@@ -369,7 +369,19 @@ void SBAServer::callback(int sd, char *buf, int len)
         std::string operation;
         operation = decryptCipherText((unsigned char*)buf, len, connected_users[sd]->m_sharedSecret, connected_users[sd]->m_hmacSecret);
         Logger::success("got operation: " + operation);
-        //performOperation(sd, operation); // switch execution over operation, sd may be useful for answers
+        std::string answer;
+        answer = performOperation(sd, operation); // switch execution over operation, sd may be useful for answers
+        Logger::info("answering with: " + answer);
+        unsigned char* ct;
+        unsigned char* iv = nullptr;
+        unsigned char* to_hashed = nullptr;
+        unsigned char* hmac = nullptr;
+        unsigned char* to_enc = nullptr;
+        int len = 0;
+        int enc_len = 0;
+        ct = createCiphertext(answer, connected_users[sd]->m_sharedSecret, &iv, &to_hashed, &hmac, connected_users[sd]->m_hmacSecret, &to_enc, &len, &enc_len);
+        Logger::debug("ct: " + Base64Encode(ct, (size_t)len));
+        m_socketServer->sendData(sd, (const char*)ct, (size_t)len);
     }
     else
     {
@@ -391,6 +403,14 @@ bool SBAServer::addCredentials(std::string username, std::string password)
 void SBAServer::resetDB()
 {
     m_database->resetDB();
+}
+
+std::string SBAServer::performOperation(int sd, std::string op)
+{
+    if (op == "balance")
+        return std::to_string(m_database->getBalance(connected_users[sd]->m_username));
+    return std::string("unrecognized command on server");
+
 }
 
 SBAServer::SBAServer(SocketServer *socketServer, DatabaseDAO *database)

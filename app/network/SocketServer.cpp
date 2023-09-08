@@ -156,6 +156,7 @@ void SocketServer::start(SBAServer *sbaServer)
                         close(fd);
                         FD_CLR(fd, &m_read_fds);
                         sbaServer->connected_users.erase(fd);
+                        Logger::info("now following " + std::to_string(sbaServer->connected_users.size()) + " connected users");
                     }
                     else
                     {

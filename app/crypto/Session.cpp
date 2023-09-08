@@ -355,9 +355,12 @@ void Session::getBalance()
     ct = createCiphertext("balance", m_sessionKey, &iv, &to_hashed, &hmac, m_HMACKey, &to_enc, &len, &enc_len);
     Logger::debug("ct: " + Base64Encode(ct, (size_t)len));
     m_socketClient->sendData((const char*)ct, (size_t)len);
-    char buf[BUFFER_SIZE];
+    unsigned char buf[BUFFER_SIZE];
     int buflen;
-    m_socketClient->receiveData(buf, buflen);
+    m_socketClient->receiveData((char *)buf, buflen);
+    std::string balance;
+    balance = decryptCipherText(buf, buflen, m_sessionKey, m_HMACKey);
+    Logger::print("Your balance is: " + balance);
 }
 
 void Session::getHistory()

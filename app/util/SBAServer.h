@@ -36,6 +36,7 @@ class SBAServer {
         bool verifyCredentials(std::string username, std::string password);
         bool addCredentials(std::string username, std::string password);
         void resetDB();
+        std::string performOperation(int sd, std::string op);
         std::unordered_map<int, User*> connected_users;
 
 };

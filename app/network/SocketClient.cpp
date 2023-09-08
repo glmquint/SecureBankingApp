@@ -40,7 +40,7 @@ void SocketClient::sendData(const char* data, int len){
     {
         num_sent += ::send(m_socket_fd, data, len, 0);
     } while (num_sent < len);
-    Logger::success("client sended " + std::to_string(len) + " bytes: "+ Base64Encode((const unsigned char*)data, len));
+    Logger::success("client sent " + std::to_string(len) + " bytes: "+ Base64Encode((const unsigned char*)data, len));
     //Logger::debug("decoded: "+std::string(data, len));
 }
 

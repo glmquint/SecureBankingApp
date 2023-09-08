@@ -30,10 +30,11 @@ int DatabaseDAO::getBalance(std::string user)
         sqlite3_bind_text(stmt, 1, user.c_str(), -1, SQLITE_STATIC);
         result = sqlite3_step(stmt);
         if (result == SQLITE_ROW){
-            balance = sqlite3_column_int(stmt, 1);
+            balance = sqlite3_column_int(stmt, 0);
         }
         sqlite3_finalize(stmt);
     }
+    Logger::success("got balance of " + user + ": " + std::to_string(balance));
     return balance;
 }
 
