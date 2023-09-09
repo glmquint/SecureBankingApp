@@ -77,8 +77,8 @@ void SBAClient::loop()
         }
         else if (cmd == "balance")
         {
-            Logger::info("got balance command");
             m_session->getBalance();
+            Logger::info("got balance command");
             // TODO
         }
         else if (cmd == "history")
@@ -107,11 +107,12 @@ void SBAClient::loop()
                 }
                 Logger::info("other: " + other);
                 Logger::info("amount: " + std::to_string(amount));
-                Logger::print("is this correct? (y/N)");
+                Logger::print("is this correct? (q/y/N)");
                 std::cin >> cmd;
-                ok = (cmd == "y");
+                ok = (cmd == "y" || cmd == "q");
             }
-            m_session->transfer(other, amount);
+            if (cmd == "y")
+                m_session->transfer(other, amount);
             // TODO
         }
 

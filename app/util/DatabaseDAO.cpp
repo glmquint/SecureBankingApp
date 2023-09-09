@@ -10,13 +10,126 @@ DatabaseDAO::DatabaseDAO(const char *db_name)
         throw std::runtime_error("problem opening the database");
     }
 }
-bool DatabaseDAO::transfer(char *src, char *dst, uint amount)
+bool DatabaseDAO::transfer(std::string sender, std::string receiver, uint amount)
 {
-    return false;
+    sqlite3_stmt* stmt = nullptr;
+
+    // Begin the SQLite transaction
+    if (sqlite3_exec(db, "BEGIN", 0, 0, 0) != SQLITE_OK) {
+        Logger::error("Failed to begin transaction: " + std::string(sqlite3_errmsg(db)));
+        return false;
+    }
+
+    // Prepare the sender's update and insert statement
+    std::string senderUpdateSQL = "UPDATE Users SET balance = balance - ? WHERE username = ?;";
+    std::string senderInsertSQL = "INSERT INTO Transfers (user, info, dt) VALUES (?, 'this user sent money', DATETIME('now'));";
+
+    if (sqlite3_prepare_v2(db, senderUpdateSQL.c_str(), -1, &stmt, 0) != SQLITE_OK) {
+        Logger::error("Failed to prepare sender update statement: " + std::string(sqlite3_errmsg(db)));
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    sqlite3_bind_int(stmt, 1, amount);
+    sqlite3_bind_text(stmt, 2, sender.c_str(), -1, SQLITE_STATIC);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        Logger::error("Failed to execute sender update statement: " + std::string(sqlite3_errmsg(db)));
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    sqlite3_reset(stmt);
+
+    if (sqlite3_prepare_v2(db, senderInsertSQL.c_str(), -1, &stmt, 0) != SQLITE_OK) {
+        Logger::error("Failed to prepare sender insert statement: " + std::string(sqlite3_errmsg(db)));
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    sqlite3_bind_text(stmt, 1, sender.c_str(), -1, SQLITE_STATIC);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        Logger::error("Failed to execute sender insert statement: " + std::string(sqlite3_errmsg(db)));
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    // Prepare the receiver's update and insert statement
+    std::string receiverUpdateSQL = "UPDATE Users SET balance = balance + ? WHERE username = ?;";
+    std::string receiverInsertSQL = "INSERT INTO Transfers (user, info, dt) VALUES (?, 'this user received money', DATETIME('now'));";
+
+    sqlite3_reset(stmt);
+
+    if (sqlite3_prepare_v2(db, receiverUpdateSQL.c_str(), -1, &stmt, 0) != SQLITE_OK) {
+        Logger::error("Failed to prepare receiver update statement: " + std::string(sqlite3_errmsg(db)));
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    sqlite3_bind_int(stmt, 1, amount);
+    sqlite3_bind_text(stmt, 2, receiver.c_str(), -1, SQLITE_STATIC);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        Logger::error("Failed to execute receiver update statement: " + std::string(sqlite3_errmsg(db)));
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    sqlite3_reset(stmt);
+
+    if (sqlite3_prepare_v2(db, receiverInsertSQL.c_str(), -1, &stmt, 0) != SQLITE_OK) {
+        Logger::error("Failed to prepare receiver insert statement: " + std::string(sqlite3_errmsg(db)));
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    sqlite3_bind_text(stmt, 1, receiver.c_str(), -1, SQLITE_STATIC);
+
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        Logger::error("Failed to execute receiver insert statement: " + std::string(sqlite3_errmsg(db)));
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    sqlite3_finalize(stmt);
+
+    // Commit the transaction
+    if (sqlite3_exec(db, "COMMIT", 0, 0, 0) != SQLITE_OK) {
+        Logger::error("Failed to commit transaction: " + std::string(sqlite3_errmsg(db)));
+        return false;
+    }
+
+    return true;
+
 }
-char *DatabaseDAO::getTransfers(char *user, int T)
+std::string DatabaseDAO::getTransfers(std::string user, uint T)
 {
-    return nullptr;
+    std::string result;
+    sqlite3_stmt* stmt = nullptr;
+
+    std::string query = "SELECT * FROM Transfers WHERE user = ? ORDER BY dt DESC LIMIT ?;";
+    
+    if (sqlite3_prepare_v2(db, query.c_str(), -1, &stmt, 0) != SQLITE_OK) {
+        Logger::error("Failed to prepare query: " + std::string(sqlite3_errmsg(db)));
+        return result;
+    }
+
+    sqlite3_bind_text(stmt, 1, user.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 2, T);
+
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        // Assuming you have columns named 'user', 'info', and 'dt' in your Transfers table
+        std::string user = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)));
+        std::string info = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
+        std::string dt = std::string(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
+        
+        result += user + " - " + info + " - " + dt + "\n";
+    }
+
+    sqlite3_finalize(stmt);
+
+    return result;
 }
 
 int DatabaseDAO::getBalance(std::string user)

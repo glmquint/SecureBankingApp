@@ -352,7 +352,8 @@ void Session::getBalance()
     unsigned char* to_enc = nullptr;
     int len = 0;
     int enc_len = 0;
-    ct = createCiphertext("balance", m_sessionKey, &iv, &to_hashed, &hmac, m_HMACKey, &to_enc, &len, &enc_len);
+    createNonce();
+    ct = createCiphertext(BAL_CMD, m_sessionKey, &iv, &to_hashed, &hmac, m_HMACKey, &to_enc, &len, &enc_len);
     Logger::debug("ct: " + Base64Encode(ct, (size_t)len));
     m_socketClient->sendData((const char*)ct, (size_t)len);
     unsigned char buf[BUFFER_SIZE];

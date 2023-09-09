@@ -265,7 +265,7 @@ void SBAServer::handshakeServer(int sd, unsigned char *buffer, int len)
         return;
     }
 
-    EVP_PKEY_free(m_privateKey);
+    //EVP_PKEY_free(m_privateKey);
 
     // now verify client the client response
     unsigned char *toHash = (unsigned char *)malloc(2 * NONCELEN + 2 * DHPARLEN + IVLEN + plain_len - SIGNLEN);
@@ -407,8 +407,12 @@ void SBAServer::resetDB()
 
 std::string SBAServer::performOperation(int sd, std::string op)
 {
-    if (op == "balance")
+    if (op ==BAL_CMD)
         return std::to_string(m_database->getBalance(connected_users[sd]->m_username));
+    //else if (op == TRANSF_CMD)
+        //return std::to_string(m_database->transfer(connected_users[sd]->m_username, ));
+    else if (op == HISTORY_CMD)
+        return m_database->getTransfers(connected_users[sd]->m_username, T_TRANSFERS);
     return std::string("unrecognized command on server");
 
 }
