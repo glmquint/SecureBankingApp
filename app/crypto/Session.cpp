@@ -3,12 +3,11 @@
 #include "util.h"
 #include <string>
 #include <iostream>
-#include <memory>
-
-
+#include <vector>
+#include <numeric>
 
 int Session::sendHandshakeMsg(std::string sent, unsigned char **nonce,
-                          unsigned char **dh_uchar, EVP_PKEY **dh_pub, int& dh_pub_len)
+                              unsigned char **dh_uchar, EVP_PKEY **dh_pub, int &dh_pub_len)
 {
 
     // Generate the DH key
@@ -27,11 +26,11 @@ int Session::sendHandshakeMsg(std::string sent, unsigned char **nonce,
         Logger::error("Error generating the nonces");
         return -1;
     }
-    Logger::info("nonce created: " + Base64Encode((const unsigned char*)*nonce, NONCELEN));
+    Logger::info("nonce created: " + Base64Encode((const unsigned char *)*nonce, NONCELEN));
 
     // Generate the msg to send: Command/DH/NONCE/username
     std::string cmd = "HELLO";
-    int msg_len = sent.size() + cmd.size() + DHPARLEN + NONCELEN + 2; //TODO: check if needed, also DHPARLEN != dh_pub_len
+    int msg_len = sent.size() + cmd.size() + DHPARLEN + NONCELEN + 2; // TODO: check if needed, also DHPARLEN != dh_pub_len
     unsigned char *msg = (unsigned char *)malloc(msg_len);
     if (!msg)
     {
@@ -41,7 +40,7 @@ int Session::sendHandshakeMsg(std::string sent, unsigned char **nonce,
     memcpy(msg, (unsigned char *)cmd.c_str(), cmd.size());
     memcpy(msg + CMDLEN, *dh_uchar, dh_pub_len);
     memcpy(msg + CMDLEN + DHPARLEN, *nonce, NONCELEN);
-    //memcpy(msg + CMDLEN + NONCELEN + dh_pub_len, (unsigned char *)sent.c_str(), sent.size() + 0);
+    // memcpy(msg + CMDLEN + NONCELEN + dh_pub_len, (unsigned char *)sent.c_str(), sent.size() + 0);
     memcpy(msg + CMDLEN + DHPARLEN + NONCELEN, (unsigned char *)sent.c_str(), sent.size() + 0);
 
     // Send the message and return the socked descriptor
@@ -51,12 +50,9 @@ int Session::sendHandshakeMsg(std::string sent, unsigned char **nonce,
     return 0;
 }
 
-
-
-
 int Session::receiveServerHandshakeAnswer(unsigned char **nonce_server,
-                                      unsigned char **dh_params_server, unsigned char **sharedSecret,
-                                      EVP_PKEY **dh_pub, unsigned char *dh_client, unsigned char *nonce_client, int dh_uchar_len)
+                                          unsigned char **dh_params_server, unsigned char **sharedSecret,
+                                          EVP_PKEY **dh_pub, unsigned char *dh_client, unsigned char *nonce_client, int dh_uchar_len)
 {
 
     // receive the login answer
@@ -114,7 +110,7 @@ int Session::receiveServerHandshakeAnswer(unsigned char **nonce_server,
 
     // Generate the buffer to hash
     unsigned char *toHash = (unsigned char *)malloc(2 * DHPARLEN + 2 * NONCELEN + IVLEN);
-    memset(toHash, 0, 2*DHPARLEN + 2*NONCELEN + IVLEN);
+    memset(toHash, 0, 2 * DHPARLEN + 2 * NONCELEN + IVLEN);
     memcpy(toHash, plainText_DH, DHPARLEN);
     memcpy(toHash + DHPARLEN, plainText_Nonce, NONCELEN);
     memcpy(toHash + DHPARLEN + NONCELEN, dh_client, dh_uchar_len);
@@ -125,7 +121,7 @@ int Session::receiveServerHandshakeAnswer(unsigned char **nonce_server,
     securefree(IV, IVLEN);
 
     // Hash the buffer and verity the signature
-    Logger::debug("toHash: " + Base64Encode(toHash, 2*DHPARLEN + 2*NONCELEN + IVLEN));
+    Logger::debug("toHash: " + Base64Encode(toHash, 2 * DHPARLEN + 2 * NONCELEN + IVLEN));
     unsigned char *hashed = getHash(toHash, 2 * DHPARLEN + 2 * NONCELEN + IVLEN, nullptr, EVP_sha256());
     securefree(toHash, 2 * NONCELEN + 2 * DHPARLEN + IVLEN);
     if (verify_signature(m_publicKeyServer, signed_hash, plaintext_len, hashed, SHA256LEN) <= 0)
@@ -133,6 +129,7 @@ int Session::receiveServerHandshakeAnswer(unsigned char **nonce_server,
         securefree(signed_hash, plaintext_len);
         securefree(hashed, SHA256LEN);
         Logger::error("Failed in verifying signature");
+        return -1;
     }
     m_sessionKey = session_key;
     m_HMACKey = HMACk;
@@ -142,12 +139,9 @@ int Session::receiveServerHandshakeAnswer(unsigned char **nonce_server,
     return 0;
 }
 
-
-
-
 int Session::sendHashCheck(std::string password, EVP_PKEY *privkey, unsigned char *client_dh,
-                  unsigned char *nonce_client, unsigned char *server_dh,
-                  unsigned char *nonce_server, int dh_uchar_len)
+                           unsigned char *nonce_client, unsigned char *server_dh,
+                           unsigned char *nonce_server, int dh_uchar_len)
 {
 
     // Create the text to be signed
@@ -159,14 +153,14 @@ int Session::sendHashCheck(std::string password, EVP_PKEY *privkey, unsigned cha
         Logger::error("Error in malloc of to_sign");
         return -1;
     }
-    memset(to_sign, 0, 2*DHPARLEN + 2*NONCELEN + IVLEN + password.size() + 0);
+    memset(to_sign, 0, 2 * DHPARLEN + 2 * NONCELEN + IVLEN + password.size() + 0);
     memcpy(to_sign, client_dh, dh_uchar_len);
     memcpy(to_sign + DHPARLEN, nonce_client, NONCELEN);
     memcpy(to_sign + DHPARLEN + NONCELEN, server_dh, DHPARLEN);
     memcpy(to_sign + 2 * DHPARLEN + NONCELEN, nonce_server, NONCELEN);
     memcpy(to_sign + 2 * DHPARLEN + 2 * NONCELEN, IV, IVLEN);
     memcpy(to_sign + 2 * DHPARLEN + 2 * NONCELEN + IVLEN, (unsigned char *)password.c_str(), password.size() + 0);
-    Logger::debug("to_sign: " + Base64Encode(to_sign, 2*DHPARLEN + 2* NONCELEN + IVLEN + password.size() + 0));
+    Logger::debug("to_sign: " + Base64Encode(to_sign, 2 * DHPARLEN + 2 * NONCELEN + IVLEN + password.size() + 0));
 
     // Create the hash for the text
     unsigned char *hash = getHash(to_sign, 2 * DHPARLEN + 2 * NONCELEN + IVLEN + password.size() + 0, nullptr, EVP_sha256());
@@ -201,7 +195,6 @@ int Session::sendHashCheck(std::string password, EVP_PKEY *privkey, unsigned cha
     memcpy(to_cptxt + SIGNLEN, (unsigned char *)password.c_str(), password.size() + 0);
     securefree(signature, SIGNLEN);
 
-
     // Encrypt the plaintext
     int len = 0;
     unsigned char *cptxt = AESencrypt(to_cptxt, SIGNLEN + password.size() + 0, m_sessionKey, IV, len);
@@ -226,12 +219,11 @@ int Session::sendHashCheck(std::string password, EVP_PKEY *privkey, unsigned cha
     memcpy(msg + IVLEN, cptxt, len);
     securefree(IV, IVLEN);
     securefree(cptxt, len);
-    //send(sd, msg, IVLEN + len, 0);
-    m_socketClient->sendData((const char*)msg, IVLEN + len);
+    // send(sd, msg, IVLEN + len, 0);
+    m_socketClient->sendData((const char *)msg, IVLEN + len);
     securefree(msg, IVLEN + len);
     return 1;
 }
-
 
 Session::Session(SocketClient *socketClient)
 {
@@ -252,9 +244,9 @@ Session::Session(SocketClient *socketClient)
         std::cin >> password;
 
         std::string filepath = "./keys/" + username + "/rsa_privkey.pem";
-        std::unique_ptr<EVP_PKEY, void (*)(EVP_PKEY *)> privkey(readPrivateKey(filepath, password), [](EVP_PKEY *evp_pkey)
+        m_privkey = std::unique_ptr<EVP_PKEY, void (*)(EVP_PKEY *)> (readPrivateKey(filepath, password), [](EVP_PKEY *evp_pkey)
                                                                 { EVP_PKEY_free(evp_pkey); });
-        if (!privkey.get())
+        if (!m_privkey.get())
         {
             Logger::error("incorrect credentials. Please try again");
             continue;
@@ -277,7 +269,7 @@ Session::Session(SocketClient *socketClient)
         unsigned char *sharedSecret = nullptr;
         Logger::info("receiving server handshake answer");
         ret = receiveServerHandshakeAnswer(&nonce_server, &dh_params_server, &sharedSecret,
-                                       &dh_pub, dh_uchar, nonce, dh_uchar_len);
+                                           &dh_pub, dh_uchar, nonce, dh_uchar_len);
 
         if (ret != 0)
         {
@@ -293,7 +285,7 @@ Session::Session(SocketClient *socketClient)
 
         // Prepare variable for memory management in hashcheck response
         Logger::info("sending hash check");
-        ret = sendHashCheck(password, privkey.get(), dh_uchar, nonce, dh_params_server, nonce_server, dh_uchar_len);
+        ret = sendHashCheck(password, m_privkey.get(), dh_uchar, nonce, dh_params_server, nonce_server, dh_uchar_len);
 
         // Free remaining memory
         securefree(dh_uchar, dh_uchar_len);
@@ -323,14 +315,17 @@ Session::Session(SocketClient *socketClient)
 
         */
         EVP_PKEY_free(dh_pub);
-        result = m_socketClient->receive();
+        unsigned char buf[BUFFER_SIZE];
+        int buflen;
+        m_socketClient->receiveData((char *)buf, buflen);
+        std::string result;
+        result = decryptCipherText(buf, buflen, m_sessionKey, m_HMACKey);
         m_isExpired = (result != "OK");
         if (m_isExpired)
         {
             Logger::error("invalid credentials. Please try again");
         }
     }
-    Logger::success("Login successful. Welcome back " + username);
 }
 
 Session::~Session()
@@ -345,17 +340,17 @@ bool Session::isExpired()
 void Session::getBalance()
 {
     Logger::debug("getting balance");
-    unsigned char* ct;
-    unsigned char* iv = nullptr;
-    unsigned char* to_hashed = nullptr;
-    unsigned char* hmac = nullptr;
-    unsigned char* to_enc = nullptr;
+    unsigned char *ct;
+    unsigned char *iv = nullptr;
+    unsigned char *to_hashed = nullptr;
+    unsigned char *hmac = nullptr;
+    unsigned char *to_enc = nullptr;
     int len = 0;
     int enc_len = 0;
     createNonce();
     ct = createCiphertext(BAL_CMD, m_sessionKey, &iv, &to_hashed, &hmac, m_HMACKey, &to_enc, &len, &enc_len);
     Logger::debug("ct: " + Base64Encode(ct, (size_t)len));
-    m_socketClient->sendData((const char*)ct, (size_t)len);
+    m_socketClient->sendData((const char *)ct, (size_t)len);
     unsigned char buf[BUFFER_SIZE];
     int buflen;
     m_socketClient->receiveData((char *)buf, buflen);
@@ -367,9 +362,96 @@ void Session::getBalance()
 void Session::getHistory()
 {
     Logger::debug("getting history");
+    unsigned char *ct;
+    unsigned char *iv = nullptr;
+    unsigned char *to_hashed = nullptr;
+    unsigned char *hmac = nullptr;
+    unsigned char *to_enc = nullptr;
+    int len = 0;
+    int enc_len = 0;
+    createNonce();
+    ct = createCiphertext(HISTORY_CMD, m_sessionKey, &iv, &to_hashed, &hmac, m_HMACKey, &to_enc, &len, &enc_len);
+    Logger::debug("ct: " + Base64Encode(ct, (size_t)len));
+    m_socketClient->sendData((const char *)ct, (size_t)len);
+    unsigned char buf[BUFFER_SIZE];
+    int buflen;
+    m_socketClient->receiveData((char *)buf, buflen);
+    std::string result;
+    result = decryptCipherText(buf, buflen, m_sessionKey, m_HMACKey);
+    std::vector<std::string> arr;
+
+    size_t start = 0;
+    size_t end = result.find('\n', start);
+
+    while (end != std::string::npos)
+    {
+        std::string line = result.substr(start, end - start);
+        start = end + 1;
+        end = result.find('\n', start);
+
+        // Split each line by " | "
+        size_t pos1 = line.find(" | ");
+        if (pos1 == std::string::npos)
+        {
+            Logger::error("error while parsing result");
+            return;
+        }
+        size_t pos2 = line.find(" | ", pos1 + 3);
+        if (pos2 == std::string::npos)
+        {
+            Logger::error("error while parsing result");
+            return;
+        }
+        std::string part1 = line.substr(0, pos1);
+        std::string part2 = line.substr(pos1 + 3, pos2 - pos1 - 3);
+        std::string part3 = line.substr(pos2 + 3);
+
+        Logger::debug(part1 + part2 + part3);
+
+        size_t info_enc_len = 0;
+        unsigned char *info_enc = Base64Decode(part3, info_enc_len);
+        unsigned char *plaintext_rawptr = nullptr;
+        size_t plainlen = 0;
+        bool res = RSADecrypt(m_privkey.get(), info_enc, info_enc_len, plaintext_rawptr, plainlen);
+        std::unique_ptr<unsigned char> plaintext(plaintext_rawptr);
+        if (!res)
+        {
+            Logger::error("error while RSA decrypting");
+            return;
+        }
+        std::string part3_dec(reinterpret_cast<char *>(plaintext_rawptr), plainlen);
+        std::string processedLine = part2 + " | You " + part3_dec;
+
+        // Add the processed line to the 'arr' vector
+        arr.push_back(processedLine);
+    }
+    //result = std::accumulate(arr.begin(), arr.end(), std::string("\n"));
+    Logger::print("History of transfers:");
+    for (auto &&transfer : arr)
+    {
+        Logger::print(transfer);
+    }
+    
 }
 
 void Session::transfer(std::string other, uint amount)
 {
     Logger::debug("transferring to " + other + " amount: " + std::to_string(amount));
+    unsigned char *ct;
+    unsigned char *iv = nullptr;
+    unsigned char *to_hashed = nullptr;
+    unsigned char *hmac = nullptr;
+    unsigned char *to_enc = nullptr;
+    int len = 0;
+    int enc_len = 0;
+    createNonce();
+    ct = createCiphertext(std::string(TRANSF_CMD) + " " + other + " " + std::to_string(amount), m_sessionKey, &iv, &to_hashed, &hmac, m_HMACKey, &to_enc, &len, &enc_len);
+    Logger::debug("ct: " + Base64Encode(ct, (size_t)len));
+    m_socketClient->sendData((const char *)ct, (size_t)len);
+    unsigned char buf[BUFFER_SIZE];
+    int buflen;
+    m_socketClient->receiveData((char *)buf, buflen);
+    std::string result;
+    result = decryptCipherText(buf, buflen, m_sessionKey, m_HMACKey);
+    Logger::print(result);
 }

@@ -1,18 +1,17 @@
 #include "RingSet.h"
 #include <cstring>
+#include <cstring>
 
-template <typename T>
-RingSet<T>::RingSet(size_t capacity) : m_capacity(capacity), m_buffer(capacity), m_setSize(0) {}
+RingSet::RingSet(size_t capacity) : m_capacity(capacity), m_buffer(capacity), m_setSize(0) {}
 
-template <typename T>
-bool RingSet<T>::insert(const T& value) {
-    if (std::find(m_buffer.begin(), m_buffer.end(), value) != m_buffer.end()) {
-        // Element already exists in the buffer, do not insert it again.
+bool RingSet::insert(Nonce& nonce){
+if (std::find(m_buffer.begin(), m_buffer.end(), nonce) != m_buffer.end()){
+        // Element already exists in the buffer, do not insert it again
         return false;
     }
-
+    
     //m_buffer[m_head] = value;
-    std::memcpy(&m_buffer[m_head], &value, sizeof(T));
+    std::memcpy(&m_buffer[m_head], &nonce, sizeof(Nonce));
     m_head = (m_head + 1) % m_capacity;
     if (m_setSize < m_capacity) {
         m_setSize++;
@@ -21,12 +20,10 @@ bool RingSet<T>::insert(const T& value) {
     return true;
 }
 
-template <typename T>
-bool RingSet<T>::contains(const T& value) const {
-    return std::find(m_buffer.begin(), m_buffer.begin() + m_setSize, value) != m_buffer.begin() + m_setSize;
+bool RingSet::contains(Nonce& nonce)  {
+    return std::find(m_buffer.begin(), m_buffer.begin() + m_setSize, nonce) != m_buffer.begin() + m_setSize;
 }
 
-template class RingSet<unsigned char[8]>;
 /*
 int main() {
     RingSet ringSet(5);

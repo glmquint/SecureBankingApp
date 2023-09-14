@@ -185,9 +185,9 @@ unsigned char *createCiphertext(std::string msg, unsigned char *sharedSecret,
     }
 
     unsigned char *concat_msg = (unsigned char *)malloc(IVLEN + SHA256LEN + AES_len);
-    memcpy(concat_msg , *IV, IVLEN);
-    memcpy(concat_msg + IVLEN , *HMAC, SHA256LEN);
-    memcpy(concat_msg + SHA256LEN + IVLEN , cipherText, AES_len);
+    memcpy(concat_msg, *IV, IVLEN);
+    memcpy(concat_msg + IVLEN, *HMAC, SHA256LEN);
+    memcpy(concat_msg + SHA256LEN + IVLEN, cipherText, AES_len);
 
     securefree(cipherText, AES_len);
 
@@ -244,7 +244,7 @@ std::string decryptCipherText(unsigned char *buffer, int buflen, unsigned char *
     securefree(hash_received, SHA256LEN);
     securefree(to_hashed, IVLEN + decrypted_size);
     securefree(calculatedHash, SHA256LEN);
-    std::string operation((char*)decrypted, decrypted_size);
+    std::string operation((char *)decrypted, decrypted_size);
     securefree(decrypted, decrypted_size);
     return operation;
 }
@@ -454,6 +454,57 @@ unsigned char *signMsg(EVP_PKEY *privkey, const unsigned char *hash, const size_
     Logger::success("SIGNATURE\n" + Base64Encode(signature, signature_len));
     return signature;
 }
+// Use RSA to encrypt a message plaintext of length plaintextlen with the public key publicKey
+bool RSAEncrypt(EVP_PKEY* publickey, const unsigned char* plaintext, size_t plaintextlen, unsigned char*& ciphertext, size_t& ciphertextlen) {
+    EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new(publickey, nullptr);
+    if (!ctx) {
+        return false;
+    }
+
+    if (EVP_PKEY_encrypt_init(ctx) <= 0 || EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING) <= 0 || EVP_PKEY_encrypt(ctx, nullptr, &ciphertextlen, plaintext, plaintextlen) <= 0) {
+        EVP_PKEY_CTX_free(ctx);
+        return false;
+    }
+
+    ciphertext = new unsigned char[ciphertextlen];
+
+    if (EVP_PKEY_encrypt(ctx, ciphertext, &ciphertextlen, plaintext, plaintextlen) <= 0) {
+        EVP_PKEY_CTX_free(ctx);
+        delete[] ciphertext;
+        return false;
+    }
+
+    EVP_PKEY_CTX_free(ctx);
+    return true;
+}
+
+// Use RSA to decrypt a message ciphertext with the private key privateKey, return also the length of the plaintext
+bool RSADecrypt(EVP_PKEY* privatekey, const unsigned char* ciphertext, size_t ciphertextlen, unsigned char*& plaintext, size_t& plaintextlen) {
+    EVP_PKEY_CTX* ctx = EVP_PKEY_CTX_new(privatekey, nullptr);
+    if (!ctx) {
+        Logger::error("error with new ctx");
+        return false;
+    }
+
+    if (EVP_PKEY_decrypt_init(ctx) <= 0 || EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_OAEP_PADDING) <= 0 || EVP_PKEY_decrypt(ctx, nullptr, &plaintextlen, ciphertext, ciphertextlen) <= 0) {
+        Logger::error("error while decrypt init");
+        EVP_PKEY_CTX_free(ctx);
+        return false;
+    }
+
+    plaintext = new unsigned char[plaintextlen];
+
+    if (EVP_PKEY_decrypt(ctx, plaintext, &plaintextlen, ciphertext, ciphertextlen) <= 0) {
+        Logger::error("error while decrypt ");
+        EVP_PKEY_CTX_free(ctx);
+        delete[] plaintext;
+        return false;
+    }
+
+    EVP_PKEY_CTX_free(ctx);
+    return true;
+}
+
 // Given a unsigned char * of length len and a salt "salt", return the hash of the msg with the shaAlgo algorithm
 unsigned char *getHash(unsigned char *msg, size_t len, unsigned char *salt, const EVP_MD *shaAlgo)
 {
@@ -658,9 +709,25 @@ Nonce::Nonce(const Nonce &nonce)
     memcpy(m_nonce, nonce.m_nonce, NONCELEN);
 }
 
+Nonce::Nonce(unsigned char *nonce)
+{
+    m_nonce = (unsigned char*)malloc(NONCELEN);
+    std::memcpy(m_nonce, nonce, NONCELEN);
+}
+
 unsigned char *Nonce::get()
 {
     return m_nonce;
+}
+
+bool Nonce::operator==(const Nonce &other) const
+{
+    //printf("%x %x %x %x %x %x %x %x\n", m_nonce[0], m_nonce[1], m_nonce[2], m_nonce[3], m_nonce[4], m_nonce[5], m_nonce[6], m_nonce[7] );
+    //printf("%x %x %x %x %x %x %x %x\n", other.m_nonce[0], other.m_nonce[1], other.m_nonce[2], other.m_nonce[3], other.m_nonce[4], other.m_nonce[5], other.m_nonce[6], other.m_nonce[7] );
+    //std::fflush(stdout);
+    if (m_nonce == nullptr)
+        return false;
+    return !std::memcmp(m_nonce, other.m_nonce, NONCELEN);
 }
 
 Nonce::~Nonce()

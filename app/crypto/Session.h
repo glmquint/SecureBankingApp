@@ -2,12 +2,15 @@
 #define SESSION_H
 #include "../network/SocketClient.h"
 #include "util.h"
+#include <memory>
 
 class Session
 {
 private:
     SocketClient* m_socketClient;
     EVP_PKEY* m_publicKeyServer;
+    std::unique_ptr<EVP_PKEY, void (*)(EVP_PKEY *)> m_privkey = std::unique_ptr<EVP_PKEY, void (*)(EVP_PKEY *)> (nullptr, [](EVP_PKEY *evp_pkey)
+                                                                { EVP_PKEY_free(evp_pkey); });
     bool m_isExpired;
     unsigned char* m_sessionKey;
     unsigned char* m_HMACKey;

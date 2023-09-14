@@ -3,19 +3,19 @@
 
 #include <vector>
 #include <algorithm>
+#include "../crypto/util.h"
 
-template <typename T>
 class RingSet {
 public:
     RingSet(size_t capacity);
 
-    bool insert(const T& value);
+    bool insert(Nonce& nonce);
 
-    bool contains(const T& value) const;
+    bool contains(Nonce& nonce) ;
 
 private:
     size_t m_capacity;
-    std::vector<T> m_buffer;
+    std::vector<Nonce> m_buffer;
     size_t m_head = 0; // Index to insert the next element
     size_t m_setSize = 0; // Number of unique elements currently in the buffer
 };

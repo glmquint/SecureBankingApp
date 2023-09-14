@@ -84,7 +84,7 @@ void SocketClient::close()
 
 SocketClient::~SocketClient()
 {
-    LOG("destructor socket client");
+    // LOG("destructor socket client");
     // close(); // TODO: understand why
 }
 

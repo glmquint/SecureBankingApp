@@ -7,7 +7,7 @@ all: client server
 client: client.o util/SBAClient.o network/SocketClient.o util/Logger.o crypto/util.o crypto/Session.o
 	$(CXX) $^ -o $@ $(CXXLFLAGS) 
 
-server: server.o util/SBAServer.o network/SocketServer.o util/Logger.o util/sqlite3.o util/DatabaseDAO.o crypto/util.o util/RingSet.o
+server: server.o util/SBAServer.o network/SocketServer.o util/Logger.o util/sqlite3.o util/DatabaseDAO.o util/RingSet.o crypto/util.o 
 	$(CXX) $^ -o $@ $(CXXLFLAGS)
 
 util/sqlite3.o: util/sqlite3.c

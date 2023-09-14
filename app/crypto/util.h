@@ -45,6 +45,8 @@ EVP_PKEY *convertToEVP_PKEY(const unsigned char *keyData, size_t keyLength);
 unsigned char *generate_IV();
 unsigned char *getHash(unsigned char *msg, size_t len, unsigned char *salt, const EVP_MD *shaAlgo);
 unsigned char *signMsg(EVP_PKEY *privkey, const unsigned char *hash, const size_t hash_len);
+bool RSAEncrypt(EVP_PKEY* publickey, const unsigned char* plaintext, size_t plaintextlen, unsigned char*& ciphertext, size_t& ciphertextlen);
+bool RSADecrypt(EVP_PKEY* privatekey, const unsigned char* ciphertext, size_t ciphertextlen, unsigned char*& plaintext, size_t& plaintextlen);
 unsigned char *AESencrypt(const unsigned char *buffer, size_t bufferSize, const unsigned char *key, const unsigned char *iv, int &ciphertextlen);
 unsigned char *AESdecrypt(const unsigned char *ciphertext, size_t ciphertextSize, const unsigned char *key, const unsigned char *iv, int &plaintextlen);
 EVP_PKEY *readPublicKey(std::string filepath);
@@ -86,7 +88,9 @@ public:
     Nonce();
     Nonce(int nonce_len);
     Nonce(const Nonce &nonce);
+    Nonce(unsigned char *nonce);
     unsigned char *get();
+    bool operator==(const Nonce& other) const;
     ~Nonce();
 };
 

@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string>
 #include <stdexcept>
+#include <sstream>
 #include "SBAServer.h"
 #include <iostream>
 #include <iomanip> // For setw and setfill
@@ -26,7 +27,7 @@ void SBAServer::handshakeServer(int sd, unsigned char *buffer, int len)
         // reportError(sd, -1);
         return;
     }
-    unsigned char* recv_cmd = (unsigned char*) malloc(CMDLEN);
+    unsigned char *recv_cmd = (unsigned char *)malloc(CMDLEN);
     unsigned char *nonceClient = (unsigned char *)malloc(NONCELEN);
     unsigned char *dh_params_cl = (unsigned char *)malloc(DHPARLEN);
     unsigned char *username = (unsigned char *)malloc(len - NONCELEN - DHPARLEN - CMDLEN);
@@ -36,7 +37,18 @@ void SBAServer::handshakeServer(int sd, unsigned char *buffer, int len)
     memcpy(nonceClient, buffer + CMDLEN + DHPARLEN, NONCELEN);
     memcpy(username, buffer + CMDLEN + DHPARLEN + NONCELEN, len - NONCELEN - DHPARLEN - CMDLEN);
 
-    if ("HELLO" != std::string((const char*)recv_cmd, CMDLEN)){
+    {
+        Nonce nc = Nonce(nonceClient);
+        if (m_pastNonces.contains(nc))
+        {
+            Logger::error("replay attack detected");
+            return;
+        }
+        m_pastNonces.insert(nc);
+    }
+
+    if ("HELLO" != std::string((const char *)recv_cmd, CMDLEN))
+    {
         Logger::error("not a valid message");
         return;
     }
@@ -141,7 +153,7 @@ void SBAServer::handshakeServer(int sd, unsigned char *buffer, int len)
 
     // We need to calculate the hash to sign
     unsigned char *to_sign = (unsigned char *)malloc(2 * DHPARLEN + 2 * NONCELEN + IVLEN);
-    memset(to_sign, 0, 2*DHPARLEN + 2*NONCELEN + IVLEN);
+    memset(to_sign, 0, 2 * DHPARLEN + 2 * NONCELEN + IVLEN);
     memcpy(to_sign, plainText, DHPARLEN + NONCELEN); // DH and nonce server
     memcpy(to_sign + DHPARLEN + NONCELEN, dh_params_cl, DHPARLEN);
     memcpy(to_sign + 2 * DHPARLEN + NONCELEN, nonceClient, NONCELEN);
@@ -208,7 +220,7 @@ void SBAServer::handshakeServer(int sd, unsigned char *buffer, int len)
     securefree(IV, IVLEN);
     securefree(to_send, DHPARLEN + NONCELEN + cptxt_len + IVLEN);
 
-    User* newuser = new User;
+    User *newuser = new User;
     newuser->m_username = user;
     newuser->m_sharedSecret = sessionKey;
     newuser->m_hmacSecret = HMACKey;
@@ -250,22 +262,6 @@ void SBAServer::handshakeServer(int sd, unsigned char *buffer, int len)
     memcpy(password, decrypted + SIGNLEN, plain_len - SIGNLEN);
     std::string password_str(reinterpret_cast<char *>(password), plain_len - SIGNLEN);
     // if(password_str.compare(decryptFile(m_privateKey,"./server/users/"+user+"/"+"password.txt.enc"))!=0){
-    if (!m_database->verifyCredentials(user, password_str))
-    {
-        Logger::error("Failed to verify the password of the user");
-        securefree(dh_params_cl, DHPARLEN);
-        securefree(nonceClient, NONCELEN);
-        securefree(sessionKey, AES128LEN);
-        securefree(HMACKey, SHA256LEN);
-        securefree(plainText, DHPARLEN + NONCELEN);
-        securefree(password, plain_len - SIGNLEN);
-        securefree(IV, IVLEN);
-        EVP_PKEY_free(m_privateKey);
-        securefree(decrypted, plain_len);
-        return;
-    }
-
-    //EVP_PKEY_free(m_privateKey);
 
     // now verify client the client response
     unsigned char *toHash = (unsigned char *)malloc(2 * NONCELEN + 2 * DHPARLEN + IVLEN + plain_len - SIGNLEN);
@@ -274,7 +270,7 @@ void SBAServer::handshakeServer(int sd, unsigned char *buffer, int len)
     memcpy(toHash + DHPARLEN + NONCELEN, plainText, DHPARLEN + NONCELEN);
     memcpy(toHash + DHPARLEN + NONCELEN + DHPARLEN + NONCELEN, IV, IVLEN);
     memcpy(toHash + DHPARLEN + NONCELEN + DHPARLEN + NONCELEN + IVLEN, password, plain_len - SIGNLEN);
-    Logger::debug("toHash : " + Base64Encode(toHash, 2*NONCELEN + 2*DHPARLEN + IVLEN + plain_len - SIGNLEN));
+    Logger::debug("toHash : " + Base64Encode(toHash, 2 * NONCELEN + 2 * DHPARLEN + IVLEN + plain_len - SIGNLEN));
 
     securefree(password, plain_len - SIGNLEN);
     securefree(dh_params_cl, DHPARLEN);
@@ -292,7 +288,7 @@ void SBAServer::handshakeServer(int sd, unsigned char *buffer, int len)
         securefree(decrypted, plain_len);
         return;
     }
-    Logger::debug("hashed: " + Base64Encode(hashed, 2*DHPARLEN + 2*NONCELEN + IVLEN + plain_len - SIGNLEN));
+    Logger::debug("hashed: " + Base64Encode(hashed, 2 * DHPARLEN + 2 * NONCELEN + IVLEN + plain_len - SIGNLEN));
 
     // check if the signature is valid and contains same information
     EVP_PKEY *userPublicKey = readPublicKey("./keys/" + user + "/rsa_pubkey.pem");
@@ -304,7 +300,22 @@ void SBAServer::handshakeServer(int sd, unsigned char *buffer, int len)
         securefree(decrypted, plain_len);
         securefree(sessionKey, AES128LEN);
         securefree(HMACKey, SHA256LEN);
-        m_socketServer->sendData(sd, "KO", 2);
+        return;
+    }
+
+    if (!m_database->verifyCredentials(user, password_str))
+    {
+        Logger::error("Failed to verify the password of the user");
+        securefree(dh_params_cl, DHPARLEN);
+        securefree(nonceClient, NONCELEN);
+        securefree(sessionKey, AES128LEN);
+        securefree(HMACKey, SHA256LEN);
+        securefree(plainText, DHPARLEN + NONCELEN);
+        securefree(password, plain_len - SIGNLEN);
+        securefree(IV, IVLEN);
+        EVP_PKEY_free(m_privateKey);
+        securefree(decrypted, plain_len);
+        return;
     }
     securefree(toHash, 2 * DHPARLEN + 2 * NONCELEN + IVLEN + plain_len - SIGNLEN);
     EVP_PKEY_free(userPublicKey);
@@ -314,11 +325,18 @@ void SBAServer::handshakeServer(int sd, unsigned char *buffer, int len)
 
     connected_users[sd]->m_isAuthenticated = true;
     Logger::success("client is authenticated");
-    m_socketServer->sendData(sd, "OK", 2);
 
     // at this point client is authenticated
-    // TODO: create new User and add it to connected_users[sd]
-
+    unsigned char *ct;
+    unsigned char *iv = nullptr;
+    unsigned char *to_hashed = nullptr;
+    unsigned char *hmac = nullptr;
+    unsigned char *to_enc = nullptr;
+    int clear_len = 0;
+    int enc_len = 0;
+    ct = createCiphertext("OK", connected_users[sd]->m_sharedSecret, &iv, &to_hashed, &hmac, connected_users[sd]->m_hmacSecret, &to_enc, &clear_len, &enc_len);
+    Logger::debug("ct: " + Base64Encode(ct, (size_t)clear_len));
+    m_socketServer->sendData(sd, (const char *)ct, (size_t)clear_len);
     // LoggedUser newUser;
     // newUser.username=user;
     // newUser.session_key=sessionKey;
@@ -362,26 +380,25 @@ void SBAServer::handshakeServer(int sd, unsigned char *buffer, int len)
 void SBAServer::callback(int sd, char *buf, int len)
 {
     Logger::info("callback: " + Base64Encode((unsigned char *)buf, len));
-    Logger::debug("decoded: " + std::string(buf, len));
     if (connected_users.find(sd) != connected_users.end())
     {
         Logger::info("handle known user");
         std::string operation;
-        operation = decryptCipherText((unsigned char*)buf, len, connected_users[sd]->m_sharedSecret, connected_users[sd]->m_hmacSecret);
+        operation = decryptCipherText((unsigned char *)buf, len, connected_users[sd]->m_sharedSecret, connected_users[sd]->m_hmacSecret);
         Logger::success("got operation: " + operation);
         std::string answer;
         answer = performOperation(sd, operation); // switch execution over operation, sd may be useful for answers
         Logger::info("answering with: " + answer);
-        unsigned char* ct;
-        unsigned char* iv = nullptr;
-        unsigned char* to_hashed = nullptr;
-        unsigned char* hmac = nullptr;
-        unsigned char* to_enc = nullptr;
+        unsigned char *ct;
+        unsigned char *iv = nullptr;
+        unsigned char *to_hashed = nullptr;
+        unsigned char *hmac = nullptr;
+        unsigned char *to_enc = nullptr;
         int len = 0;
         int enc_len = 0;
         ct = createCiphertext(answer, connected_users[sd]->m_sharedSecret, &iv, &to_hashed, &hmac, connected_users[sd]->m_hmacSecret, &to_enc, &len, &enc_len);
         Logger::debug("ct: " + Base64Encode(ct, (size_t)len));
-        m_socketServer->sendData(sd, (const char*)ct, (size_t)len);
+        m_socketServer->sendData(sd, (const char *)ct, (size_t)len);
     }
     else
     {
@@ -405,21 +422,42 @@ void SBAServer::resetDB()
     m_database->resetDB();
 }
 
-std::string SBAServer::performOperation(int sd, std::string op)
+std::string SBAServer::performOperation(int sd, std::string req)
 {
-    if (op ==BAL_CMD)
+    std::istringstream iss(req);
+    std::string op;
+    if (!(iss >> op)){
+        Logger::error("empty request");
+        return "empty request";
+    }
+    if (op == BAL_CMD)
         return std::to_string(m_database->getBalance(connected_users[sd]->m_username));
-    //else if (op == TRANSF_CMD)
-        //return std::to_string(m_database->transfer(connected_users[sd]->m_username, ));
+    // else if (op == TRANSF_CMD)
+    // return std::to_string(m_database->transfer(connected_users[sd]->m_username, ));
     else if (op == HISTORY_CMD)
         return m_database->getTransfers(connected_users[sd]->m_username, T_TRANSFERS);
-    return std::string("unrecognized command on server");
-
+    else if (op == TRANSF_CMD){
+        std::string user;
+        int amount;
+        if (!(iss >> user)){
+            Logger::error("empry user");
+            return "empty user";
+        }
+        if (!(iss >> amount)){
+            Logger::error("empty amount");
+            return "empty amount";
+        }
+        if (amount <= 0){
+            return "amount negative";
+        }
+        return m_database->transfer(connected_users[sd]->m_username, user, amount) ? "OK" : "KO";
+    }
+    return std::string("unrecognized command " + op + " on server");
 }
 
-SBAServer::SBAServer(SocketServer *socketServer, DatabaseDAO *database)
+SBAServer::SBAServer(SocketServer *socketServer, DatabaseDAO *database) : m_pastNonces(1024)
 {
-    if (socketServer == nullptr)
+    if (socketServer == nullptr && database == nullptr)
     {
         throw std::runtime_error("null injection");
     }
