@@ -201,22 +201,4 @@ SocketServer::~SocketServer()
 
     // Close any active handling file descriptor
     FD_ZERO(&m_read_fds);
-    LOG("destructor socket server");
 }
-
-/*
-int main() {
-try {
-    SocketServer server(12345);
-    std::cout << "Server started. Listening on port 12345..." << std::endl;
-
-    server.start();
-
-    std::cout << "Server shutting down." << std::endl;
-} catch (const std::runtime_error& e) {
-    std::cerr << "Error: " << e.what() << std::endl;
-}
-
-return 0;
-}
-*/

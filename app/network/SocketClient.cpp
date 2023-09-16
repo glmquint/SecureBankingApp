@@ -44,15 +44,6 @@ void SocketClient::sendData(const char* data, int len){
     //Logger::debug("decoded: "+std::string(data, len));
 }
 
-void SocketClient::send(const std::string &message)
-{
-    int num_bytes = write(m_socket_fd, message.c_str(), message.size());
-    if (num_bytes < 0)
-    {
-        throw std::runtime_error("Failed to send data");
-    }
-}
-
 std::string SocketClient::receive()
 {
     char* buffer = new char[BUFFER_SIZE];
@@ -63,7 +54,6 @@ std::string SocketClient::receive()
 
 void SocketClient::receiveData(char *buffer, int& len)
 {
-    //buffer = new char[BUFFER_SIZE];
     len = recv(m_socket_fd, buffer, BUFFER_SIZE, 0);
     if (len < 0)
     {
@@ -84,26 +74,5 @@ void SocketClient::close()
 
 SocketClient::~SocketClient()
 {
-    // LOG("destructor socket client");
-    // close(); // TODO: understand why
+    close(); 
 }
-
-/*
-int main() {
-    SocketClient client("127.0.0.1", 12345);
-
-    try {
-        std::string message = "Hello, server!";
-        client.send(message);
-
-        std::string receivedData = client.receive();
-        std::cout << "Received: " << receivedData << std::endl;
-
-        client.close();
-    } catch (const std::runtime_error& e) {
-        std::cerr << "Error: " << e.what() << std::endl;
-    }
-
-    return 0;
-}
-*/

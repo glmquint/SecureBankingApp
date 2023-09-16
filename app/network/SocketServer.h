@@ -9,7 +9,6 @@ class SBAServer;
 class SocketServer {
 public:
     SocketServer(int port);
-    //void start(void (*callback)(SocketServer& socketServer, int sd, char* buffer, int buffer_len));
     void start(SBAServer* sbaServer);
     void sendData(int sd, const char* data, int len);
     void stop();

@@ -178,7 +178,6 @@ std::string DatabaseDAO::getTransfers(std::string user, uint T)
 
     while (sqlite3_step(stmt) == SQLITE_ROW)
     {
-        // Assuming you have columns named 'user', 'info', and 'dt' in your Transfers table
         std::string user = std::string(reinterpret_cast<const char *>(sqlite3_column_text(stmt, 0)));
         std::string dt = std::string(reinterpret_cast<const char *>(sqlite3_column_text(stmt, 1)));
         std::string info = std::string(reinterpret_cast<const char *>(sqlite3_column_text(stmt, 2)));
@@ -241,43 +240,7 @@ void DatabaseDAO::resetDB()
         throw std::runtime_error("error while creating table Transfers");
     }
 }
-/*
-void DatabaseDAO::createTable()
-{
-    const char* createTableSQL = "CREATE TABLE IF NOT EXISTS MyTable (ID INT, Name TEXT);";
-    int result = sqlite3_exec(db, createTableSQL, nullptr, nullptr, nullptr);
-    if (result != SQLITE_OK) {
-        throw std::runtime_error("error while creating table");
-    }
-}
-void DatabaseDAO::insertData(int id, const char* name){
-    const char* insertSQL = "INSERT INTO MyTable (ID, Name) VALUES (?, ?);";
-    sqlite3_stmt* stmt;
-    int result = sqlite3_prepare_v2(db, insertSQL, -1, &stmt, nullptr);
-    if (result == SQLITE_OK) {
-        //int id = 1;
-        //const char* name = "John";
-        sqlite3_bind_int(stmt, 1, id);
-        sqlite3_bind_text(stmt, 2, name, -1, SQLITE_STATIC);
-        result = sqlite3_step(stmt);
-        if (result != SQLITE_DONE) {
-            throw std::runtime_error("error while inserting data");
-        }
-        sqlite3_finalize(stmt);
-    }
-}
-void DatabaseDAO::queryData(){
-    const char* selectSQL = "SELECT ID, Name FROM MyTable;";
-    sqlite3_stmt* stmt;
-    int result = sqlite3_prepare_v2(db, selectSQL, -1, &stmt, nullptr);
-    while (sqlite3_step(stmt) == SQLITE_ROW) {
-        int id = sqlite3_column_int(stmt, 0);
-        const char* name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
-        // Process data
-    }
-    sqlite3_finalize(stmt);
-}
-*/
+
 DatabaseDAO::~DatabaseDAO()
 {
     sqlite3_close(db);
@@ -362,8 +325,6 @@ bool DatabaseDAO::verifyCredentials(std::string username, std::string password)
             Base64Decode(saved_pwd_str, outlen), EVP_MD_size(EVP_sha256()));
         // Process data
         Logger::info("result of crypto_memcmp is " + std::to_string(result));
-        // free((char *)saved_pwd); // TODO: hahah remember to free all
-        // free((char *)salt);
     }
     sqlite3_finalize(stmt);
     return result;

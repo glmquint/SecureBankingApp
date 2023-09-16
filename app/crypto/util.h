@@ -61,23 +61,7 @@ unsigned char *getHMAC(unsigned char *msg, const int msg_len, unsigned char *key
 bool verifyHash(unsigned char *calculatedHash, unsigned char *receivedHash, const EVP_MD *shaAlgo);
 
 std::string consume(std::string &buffer, size_t num);
-// // Given an EVP_PKEY, converts it to unsigned char * return also the length of the unsigned char* buffer
-// unsigned char *convertToUnsignedChar(EVP_PKEY *pkey, int *length) {
-// unsigned char *buffer = nullptr;
-// BIO *bio = BIO_new(BIO_s_mem());
 
-// if (bio != nullptr) {
-// if (PEM_write_bio_PUBKEY(bio, pkey) == 1) {
-// *length = BIO_pending(bio);
-// buffer = new unsigned char[*length];
-// BIO_read(bio, buffer, *length);
-// }
-
-// BIO_free(bio);
-// }
-
-// return buffer;
-// }
 
 class Nonce
 {

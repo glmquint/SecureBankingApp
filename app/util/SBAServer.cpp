@@ -24,7 +24,6 @@ void SBAServer::handshakeServer(int sd, unsigned char *buffer, int len)
     if (!m_privateKey)
     {
         Logger::error("unable to read server's private key");
-        // reportError(sd, -1);
         return;
     }
     unsigned char *recv_cmd = (unsigned char *)malloc(CMDLEN);
@@ -32,26 +31,28 @@ void SBAServer::handshakeServer(int sd, unsigned char *buffer, int len)
     unsigned char *dh_params_cl = (unsigned char *)malloc(DHPARLEN);
     unsigned char *username = (unsigned char *)malloc(len - NONCELEN - DHPARLEN - CMDLEN);
 
-    memcpy(recv_cmd, buffer, CMDLEN); // TODO: make all fees
+    memcpy(recv_cmd, buffer, CMDLEN); 
     memcpy(dh_params_cl, buffer + CMDLEN, DHPARLEN);
     memcpy(nonceClient, buffer + CMDLEN + DHPARLEN, NONCELEN);
     memcpy(username, buffer + CMDLEN + DHPARLEN + NONCELEN, len - NONCELEN - DHPARLEN - CMDLEN);
 
     {
-        Nonce nc = Nonce(nonceClient);
-        if (m_pastNonces.contains(nc))
+        Nonce* nc = new Nonce(nonceClient);
+        if (m_pastNonces.contains(*nc))
         {
             Logger::error("replay attack detected");
             return;
         }
-        m_pastNonces.insert(nc);
+        m_pastNonces.insert(*nc);
     }
 
     if ("HELLO" != std::string((const char *)recv_cmd, CMDLEN))
     {
+        free(recv_cmd);
         Logger::error("not a valid message");
         return;
     }
+    free(recv_cmd);
 
     std::string user = (reinterpret_cast<char *>(username));
     free(username);
@@ -261,7 +262,6 @@ void SBAServer::handshakeServer(int sd, unsigned char *buffer, int len)
     unsigned char *password = (unsigned char *)malloc(plain_len - SIGNLEN);
     memcpy(password, decrypted + SIGNLEN, plain_len - SIGNLEN);
     std::string password_str(reinterpret_cast<char *>(password), plain_len - SIGNLEN);
-    // if(password_str.compare(decryptFile(m_privateKey,"./server/users/"+user+"/"+"password.txt.enc"))!=0){
 
     // now verify client the client response
     unsigned char *toHash = (unsigned char *)malloc(2 * NONCELEN + 2 * DHPARLEN + IVLEN + plain_len - SIGNLEN);
@@ -337,45 +337,12 @@ void SBAServer::handshakeServer(int sd, unsigned char *buffer, int len)
     ct = createCiphertext("OK", connected_users[sd]->m_sharedSecret, &iv, &to_hashed, &hmac, connected_users[sd]->m_hmacSecret, &to_enc, &clear_len, &enc_len);
     Logger::debug("ct: " + Base64Encode(ct, (size_t)clear_len));
     m_socketServer->sendData(sd, (const char *)ct, (size_t)clear_len);
-    // LoggedUser newUser;
-    // newUser.username=user;
-    // newUser.session_key=sessionKey;
-    // newUser.HMAC_key=HMACKey;
-    // newUser.session_key_generation_ts=time(0); // for correct handling of TTL of the session_key
-    // newUser.id=id_clients;
-    // newUser.operation_counter_client=0; // for preventing replay attacks
-    // newUser.operation_counter_server=0;
-    // newUser.logged=true;
-    // user_logged.push_back(newUser);
+    free(ct);
+    free(iv);
+    free(to_hashed);
+    free(hmac);
+    free(to_enc);
 }
-// void SBAServer::sendEncrypted(int sd, std::string cleartext){
-//     //std::string res = "OKLOG " + to_string(int(id_clients)); // respond to client with its id
-//     unsigned char *IV_final = nullptr;
-//     unsigned char *to_hashed_final = nullptr;
-//     unsigned char *HMAC = nullptr;
-//     unsigned char *to_enc_final = nullptr;
-//     int msg_len = 0;
-//     int enc_len = 0;
-//     unsigned char *msg_final = createCiphertext(cleartext, sd, connected_users[sd]->m_sharedSecret,
-//                                                 &IV_final, &to_hashed_final, &HMAC, connected_users[sd]->m_hmacSecret, &to_enc_final, &msg_len, &enc_len);
-//     if (!msg_final)
-//     {
-//         //securefree(sessionKey, AES128LEN);
-//         //securefree(HMACKey, SHA256LEN);
-//         return;
-//     }
-//     if (IV_final != nullptr)
-//         securefree(IV_final, IVLEN);
-//     if (to_hashed_final != nullptr)
-//         securefree(to_hashed_final, IVLEN + enc_len + 1);
-//     if (HMAC != nullptr)
-//         securefree(HMAC, SHA256LEN);
-//     if (to_enc_final != nullptr)
-//         securefree(to_enc_final, cleartext.length() + 1);
-
-//     send(sd, msg_final, msg_len, 0);
-//     securefree(msg_final, msg_len);
-// }
 
 void SBAServer::callback(int sd, char *buf, int len)
 {
@@ -432,8 +399,6 @@ std::string SBAServer::performOperation(int sd, std::string req)
     }
     if (op == BAL_CMD)
         return std::to_string(m_database->getBalance(connected_users[sd]->m_username));
-    // else if (op == TRANSF_CMD)
-    // return std::to_string(m_database->transfer(connected_users[sd]->m_username, ));
     else if (op == HISTORY_CMD)
         return m_database->getTransfers(connected_users[sd]->m_username, T_TRANSFERS);
     else if (op == TRANSF_CMD){
@@ -466,9 +431,9 @@ SBAServer::SBAServer(SocketServer *socketServer, DatabaseDAO *database) : m_past
     if (!m_privateKey)
     {
         Logger::error("unable to read server's private key");
-        // reportError(sd, -1);
         throw std::runtime_error("can't read the private key");
     }
     m_database = database;
     m_socketServer->start(this);
+    EVP_PKEY_free(m_privateKey);
 }

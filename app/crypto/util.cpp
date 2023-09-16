@@ -722,9 +722,6 @@ unsigned char *Nonce::get()
 
 bool Nonce::operator==(const Nonce &other) const
 {
-    //printf("%x %x %x %x %x %x %x %x\n", m_nonce[0], m_nonce[1], m_nonce[2], m_nonce[3], m_nonce[4], m_nonce[5], m_nonce[6], m_nonce[7] );
-    //printf("%x %x %x %x %x %x %x %x\n", other.m_nonce[0], other.m_nonce[1], other.m_nonce[2], other.m_nonce[3], other.m_nonce[4], other.m_nonce[5], other.m_nonce[6], other.m_nonce[7] );
-    //std::fflush(stdout);
     if (m_nonce == nullptr)
         return false;
     return !std::memcmp(m_nonce, other.m_nonce, NONCELEN);
@@ -732,5 +729,6 @@ bool Nonce::operator==(const Nonce &other) const
 
 Nonce::~Nonce()
 {
-    free(m_nonce);
+    if (m_nonce != nullptr)
+        free(m_nonce);
 }

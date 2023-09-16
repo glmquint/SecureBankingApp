@@ -4,7 +4,7 @@
 
 #include "sqlite3.h"
 
-/*
+/* Database Schema
 * 
 * CREATE TABLE IF NOT EXISTS Users (
 *   username TEXT PRIMARY KEY,

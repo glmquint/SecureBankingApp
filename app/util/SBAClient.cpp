@@ -49,7 +49,6 @@ void SBAClient::loop()
         std::cout << "> ";
         if (!(std::cin >> cmd))
         {
-            // TODO: handle error
             Logger::error("handle cin error");
             break;
         }
@@ -61,31 +60,19 @@ void SBAClient::loop()
         {
             Logger::print("Available commands:");
             Logger::print("help                          this help command");
-            Logger::print("echo <str>                    send <str> to server and echo response");
             Logger::print("balance                       get balance");
             Logger::print("history                       get transaction history");
             Logger::print("transfer <username> <amount>  tranfer the <amount> to <username>");
-        }
-        else if (cmd == "echo")
-        {
-            std::string msg;
-            getline(std::cin, msg);
-            cmd.append(msg);
-            m_socketClient->send(cmd);
-            cmd = m_socketClient->receive();
-            Logger::info("client received " + std::to_string(cmd.length()) + " bytes back: " + cmd);
         }
         else if (cmd == "balance")
         {
             m_session->getBalance();
             Logger::info("got balance command");
-            // TODO
         }
         else if (cmd == "history")
         {
             Logger::info("got history command");
             m_session->getHistory();
-            // TODO
         }
         else if (cmd == "transfer")
         {
@@ -113,7 +100,6 @@ void SBAClient::loop()
             }
             if (cmd == "y")
                 m_session->transfer(other, amount);
-            // TODO
         }
 
         else

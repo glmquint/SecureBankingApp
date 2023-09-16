@@ -30,8 +30,9 @@ int Session::sendHandshakeMsg(std::string sent, unsigned char **nonce,
 
     // Generate the msg to send: Command/DH/NONCE/username
     std::string cmd = "HELLO";
-    int msg_len = sent.size() + cmd.size() + DHPARLEN + NONCELEN + 2; // TODO: check if needed, also DHPARLEN != dh_pub_len
+    int msg_len = sent.size() + cmd.size() + DHPARLEN + NONCELEN + 2; 
     unsigned char *msg = (unsigned char *)malloc(msg_len);
+    memset(msg, 0, msg_len);
     if (!msg)
     {
         Logger::error("Error in allocating memory for the message");
@@ -219,7 +220,6 @@ int Session::sendHashCheck(std::string password, EVP_PKEY *privkey, unsigned cha
     memcpy(msg + IVLEN, cptxt, len);
     securefree(IV, IVLEN);
     securefree(cptxt, len);
-    // send(sd, msg, IVLEN + len, 0);
     m_socketClient->sendData((const char *)msg, IVLEN + len);
     securefree(msg, IVLEN + len);
     return 1;
@@ -252,7 +252,6 @@ Session::Session(SocketClient *socketClient)
             continue;
         }
 
-        // Nonce nonce(NONCELEN);
         unsigned char *nonce = nullptr;
         unsigned char *dh_uchar = nullptr;
         int dh_uchar_len = 0;
@@ -276,8 +275,6 @@ Session::Session(SocketClient *socketClient)
             securefree(dh_uchar, DHPARLEN);
             securefree(nonce, NONCELEN);
             EVP_PKEY_free(dh_pub);
-            // send(sd, "ERR", COMMAND_SIZE, 0);
-            // close(sd);
             continue;
         }
         if (sharedSecret != nullptr)
@@ -295,25 +292,10 @@ Session::Session(SocketClient *socketClient)
         if (ret < 0)
         {
             printf("error in the hash-check phase\n");
-            // send(sd, "ERR", COMMAND_SIZE, 0);
             continue;
         }
 
         // Check the final answer
-        /*
-        if (checkTCPInput(sd) == 1)
-        {
-            logged_in = true;
-            // DEBUG_PRINT(("Id number: %d\n", getId()));
-        }
-        else
-        {
-            cout << "Error username or password incorrect\n";
-            securefree(this->sessionKey, AES128LEN);
-            securefree(this->HMACKey, SHA256LEN);
-        }
-
-        */
         EVP_PKEY_free(dh_pub);
         unsigned char buf[BUFFER_SIZE];
         int buflen;
@@ -425,7 +407,6 @@ void Session::getHistory()
         // Add the processed line to the 'arr' vector
         arr.push_back(processedLine);
     }
-    //result = std::accumulate(arr.begin(), arr.end(), std::string("\n"));
     Logger::print("History of transfers:");
     for (auto &&transfer : arr)
     {
